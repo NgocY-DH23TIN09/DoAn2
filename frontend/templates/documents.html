@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Văn Phòng Số — Kho Tài Liệu Thông Minh</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/theme.css">
+    <script src="/static/js/global-prefs.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        body { font-family: 'Inter', system-ui, sans-serif; }
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .nav-link-active { color: #4f46e5; border-bottom: 2px solid #4f46e5; padding-bottom: 2px; font-weight: 600; }
+        .cat-btn.active { background: #eef2ff; color: #4f46e5; font-weight: 600; }
+        .hover-card { transition: all .15s ease; }
+        .hover-card:hover { background: #f8fafc; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+<script>
+    if (localStorage.getItem("ui_theme") === "dark") {
+        document.body.classList.add("dark-theme");
+    }
+</script>
+
+    <!-- Header -->
+    <header class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+        <div class="flex items-center gap-8">
+            <a href="/dashboard" class="flex items-center gap-2">
+                <span class="text-lg">🏢</span>
+                <span class="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">NexusOffice</span>
+            </a>
+            <nav class="hidden md:flex gap-5 text-sm font-medium text-slate-500">
+                <a href="/dashboard" class="hover:text-indigo-600 transition">Tổng quan</a>
+                <a href="/documents" class="nav-link-active">Thư viện tài liệu</a>
+                <a href="/meetings" class="hover:text-indigo-600 transition">Phòng họp</a>
+                <a href="/tasks" class="hover:text-indigo-600 transition">Công việc</a>
+            </nav>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="relative">
+                <svg class="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+                <input id="searchInput" type="text" placeholder="Tìm tên, từ khóa, nội dung..."
+                    class="w-64 md:w-80 pl-10 pr-4 py-2 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white transition">
+            </div>
+            <button onclick="openUploadModal()"
+                class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold px-5 py-2 rounded-xl shadow-sm hover:shadow-md transition-all">
+                + Thêm tài liệu
+            </button>
+        </div>
+    </header>
+
+    <!-- Main 3-Column -->
+    <main class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-5 p-6 max-w-7xl w-full mx-auto">
+
+        <!-- Left Sidebar -->
+        <aside class="lg:col-span-3 space-y-5">
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <h2 class="text-xs font-bold uppercase tracking-widest text-slate-400 mb-3">Danh mục lưu trữ</h2>
+                <ul class="space-y-1" id="categoryFilterList">
+                    <li><button onclick="filterByCategory('')" class="cat-btn active w-full text-left px-3 py-2 rounded-lg text-sm transition hover:bg-slate-50">Tất cả tài liệu</button></li>
+                    <li><button onclick="filterByCategory('00_TiepNhan')" class="cat-btn w-full text-left px-3 py-2 rounded-lg text-sm transition hover:bg-slate-50">00_TiepNhan (Mới tải lên)</button></li>
+                    <li><button onclick="filterByCategory('01_HocLieu')" class="cat-btn w-full text-left px-3 py-2 rounded-lg text-sm transition hover:bg-slate-50">01_HocLieu (Giáo trình/Bài giảng)</button></li>
+                    <li><button onclick="filterByCategory('02_HanhChinh')" class="cat-btn w-full text-left px-3 py-2 rounded-lg text-sm transition hover:bg-slate-50">02_HanhChinh (Công văn/QĐ)</button></li>
+                    <li><button onclick="filterByCategory('90_CanPhanLoai')" class="cat-btn w-full text-left px-3 py-2 rounded-lg text-sm transition hover:bg-slate-50">90_CanPhanLoai</button></li>
+                </ul>
+            </div>
+
+            <!-- AI Q&A -->
+            <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-2 mb-1">
+                    <span class="text-base">🤖</span>
+                    <h2 class="text-sm font-bold text-slate-800">Trợ lý hỏi đáp kho tài liệu</h2>
+                </div>
+                <p class="text-xs text-slate-500 mb-3">Trả lời dựa trên nội dung tài liệu hiện có và trích dẫn nguồn.</p>
+                <textarea id="chatQuestion" rows="3" placeholder="Ví dụ: Tóm tắt quy định về chuẩn hóa dữ liệu..."
+                    class="w-full text-sm p-3 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 mb-2 resize-none"></textarea>
+                <button onclick="askAssistant()" id="btnAskAI"
+                    class="w-full bg-slate-800 hover:bg-slate-900 text-white text-xs font-semibold py-2.5 rounded-xl transition">
+                    Hỏi trợ lý AI
+                </button>
+                <div id="chatResponseBox" class="hidden mt-3 p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs space-y-2">
+                    <p id="chatAnswerText" class="text-slate-700 leading-relaxed"></p>
+                    <div id="chatSourcesList" class="border-t border-slate-200 pt-2 text-slate-500"></div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center: Document List -->
+        <section class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col">
+            <div class="p-4 border-b border-slate-100 flex items-center justify-between">
+                <h2 class="font-bold text-slate-800">Danh sách tài liệu (<span id="docCount">0</span>)</h2>
+                <select id="statusFilter" onchange="loadDocuments()" class="text-xs border border-slate-200 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-indigo-500 outline-none">
+                    <option value="">Tất cả trạng thái</option>
+                    <option value="pending">Chờ duyệt</option>
+                    <option value="approved">Đã duyệt</option>
+                    <option value="rejected">Từ chối</option>
+                </select>
+            </div>
+            <div id="documentList" class="divide-y divide-slate-100 overflow-y-auto max-h-[75vh]">
+                <p class="p-6 text-sm text-slate-400 text-center">Đang tải danh sách tài liệu...</p>
+            </div>
+        </section>
+
+        <!-- Right: Detail Panel -->
+        <section class="lg:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 flex flex-col">
+            <div id="emptyDetailState" class="my-auto text-center text-slate-400 text-sm py-12">
+                <span class="text-4xl block mb-3">📂</span>
+                Chọn một tài liệu bên trái để xem chi tiết, tóm tắt AI hoặc duyệt tên đề xuất.
+            </div>
+
+            <div id="detailPanel" class="hidden space-y-4">
+                <div class="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div>
+                        <span id="detailBadge" class="inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-800 mb-1">Chờ duyệt</span>
+                        <h3 id="detailTitle" class="font-bold text-slate-900 text-base break-words">Tên tài liệu</h3>
+                        <p id="detailMeta" class="text-xs text-slate-500 mt-0.5">Danh mục: --</p>
+                    </div>
+                </div>
+
+                <div class="bg-indigo-50/60 border border-indigo-100 rounded-xl p-4 space-y-3">
+                    <div class="flex items-center justify-between">
+                        <span class="text-xs font-bold text-indigo-900">🤖 Đề xuất chuẩn hóa từ AI</span>
+                        <button onclick="analyzeCurrentDocument()" id="btnAnalyze"
+                            class="text-xs bg-white border border-indigo-200 text-indigo-700 hover:bg-indigo-100 px-3 py-1 rounded-lg font-medium transition">
+                            Phân tích lại
+                        </button>
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-slate-500 mb-1">Tên tệp chuẩn đề xuất:</label>
+                        <input id="proposedTitleInput" type="text" class="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-[11px] text-slate-500 mb-1">Thư mục phân loại:</label>
+                        <input id="proposedCategoryInput" type="text" class="w-full text-xs p-2 bg-white border border-slate-200 rounded-lg">
+                    </div>
+                    <div id="evidenceBox" class="text-[11px] text-slate-600 bg-white p-2.5 rounded-lg border border-slate-200">
+                        <strong class="text-slate-700">Căn cứ trích xuất:</strong> <span id="evidenceQuote">Chưa có dữ liệu</span>
+                    </div>
+                    <button onclick="approveProposal()"
+                        class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2.5 rounded-lg transition">
+                        ✓ Duyệt & Áp dụng tên mới
+                    </button>
+                </div>
+
+                <div class="space-y-2">
+                    <div class="flex items-center justify-between">
+                        <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500">Tóm tắt nội dung</h4>
+                        <button onclick="summarizeCurrentDocument()" id="btnSummarize"
+                            class="text-xs text-indigo-600 hover:underline font-medium">
+                            Tạo tóm tắt AI
+                        </button>
+                    </div>
+                    <div id="summaryContent" class="text-xs text-slate-700 bg-slate-50 p-3 rounded-xl border border-slate-200 leading-relaxed min-h-[100px]">
+                        Nhấn "Tạo tóm tắt AI" để hệ thống tóm tắt nội dung văn bản này.
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Upload Modal -->
+    <div id="uploadModal" class="hidden fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 space-y-4 shadow-2xl">
+            <div class="flex justify-between items-center">
+                <h3 class="font-bold text-slate-800 text-lg">📤 Hộp tiếp nhận tài liệu</h3>
+                <button onclick="closeUploadModal()" class="text-slate-400 hover:text-slate-600 text-xl">&times;</button>
+            </div>
+            <p class="text-xs text-slate-500">Hỗ trợ PDF, DOCX, TXT, MD, CSV và ảnh JPG/PNG (tối đa 10 MB mỗi tệp). Nội dung được trích xuất khi định dạng hỗ trợ.</p>
+            <input id="fileInput" type="file" accept=".pdf,.docx,.txt,.md,.csv,.jpg,.jpeg,.png" multiple class="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-5 file:rounded-xl file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 file:transition">
+            <div id="uploadStatus" class="text-xs text-slate-600"></div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button onclick="closeUploadModal()" class="px-5 py-2 text-sm border border-slate-200 rounded-xl hover:bg-slate-50 transition">Hủy</button>
+                <button onclick="uploadFiles()" id="btnConfirmUpload" class="px-5 py-2 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold shadow-sm transition">Tải lên</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/documents.js"></script>
+</body>
+</html>

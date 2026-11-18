@@ -1,0 +1,95 @@
+/* Đồng bộ Dark Mode cho toàn bộ trang (Tailwind, Bootstrap & HTML thuần) */
+html.dark-theme,
+body.dark-theme {
+    background-color: #0f172a !important;
+    color: #e2e8f0 !important;
+}
+
+/* Thanh điều hướng trên cùng */
+body.dark-theme nav.navbar,
+body.dark-theme .bg-primary {
+    background-color: #1e293b !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+/* Khung thẻ trắng (Bootstrap .card & Tailwind .bg-white) */
+body.dark-theme .card,
+body.dark-theme .card-body,
+body.dark-theme .card-header,
+body.dark-theme .bg-white,
+body.dark-theme .bg-light,
+body.dark-theme .bg-slate-50,
+body.dark-theme .bg-gray-50,
+body.dark-theme .bg-gray-100 {
+    background-color: #1e293b !important;
+    color: #f1f5f9 !important;
+    border-color: #334155 !important;
+}
+
+/* Tiêu đề & chữ */
+body.dark-theme h1,
+body.dark-theme h2,
+body.dark-theme h3,
+body.dark-theme h4,
+body.dark-theme h5,
+body.dark-theme h6,
+body.dark-theme label,
+body.dark-theme .form-label,
+body.dark-theme .card-title,
+body.dark-theme .text-dark,
+body.dark-theme .text-slate-900,
+body.dark-theme .text-slate-800,
+body.dark-theme .text-slate-700 {
+    color: #f1f5f9 !important;
+}
+
+body.dark-theme .text-muted,
+body.dark-theme .text-secondary,
+body.dark-theme .text-slate-600,
+body.dark-theme .text-slate-500 {
+    color: #94a3b8 !important;
+}
+
+/* Ô nhập liệu, dropdown, textarea (Bootstrap & Tailwind) */
+body.dark-theme input,
+body.dark-theme select,
+body.dark-theme textarea,
+body.dark-theme .form-control,
+body.dark-theme .form-select {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    border-color: #475569 !important;
+}
+
+body.dark-theme input::placeholder,
+body.dark-theme textarea::placeholder {
+    color: #64748b !important;
+}
+
+/* Bảng dữ liệu (Bootstrap .table & Tailwind) */
+body.dark-theme .table,
+body.dark-theme table {
+    --bs-table-bg: #1e293b !important;
+    --bs-table-color: #e2e8f0 !important;
+    --bs-table-border-color: #334155 !important;
+    --bs-table-striped-bg: #172033 !important;
+    --bs-table-hover-bg: #273549 !important;
+    background-color: #1e293b !important;
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
+}
+
+body.dark-theme .table thead th,
+body.dark-theme .table-light,
+body.dark-theme thead {
+    background-color: #0f172a !important;
+    color: #f8fafc !important;
+    border-color: #334155 !important;
+}
+
+body.dark-theme .table td,
+body.dark-theme .table th {
+    background-color: transparent !important;
+    color: #e2e8f0 !important;
+    border-color: #334155 !important;
+}

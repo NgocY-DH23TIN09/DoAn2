@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tài khoản - Văn phòng số</title>
+    <script src="/static/js/global-prefs.js"></script>
+    <link rel="stylesheet" href="/static/css/style.css">
+</head>
+<body class="login-page">
+    <!-- Form Panel -->
+    <div class="login-form-panel">
+        <main class="login-container">
+            <div class="login-card">
+                <header class="login-header">
+                    <span class="login-logo" aria-hidden="true">🏢</span>
+                    <h1>VĂN PHÒNG SỐ</h1>
+                    <p>Hệ thống quản lý văn phòng thông minh</p>
+                </header>
+
+                <div class="account-tabs" role="tablist" aria-label="Tài khoản">
+                    <button class="account-tab active" id="loginTab" type="button" role="tab"
+                            aria-selected="true" aria-controls="loginPanel">Đăng nhập</button>
+                    <button class="account-tab" id="registerTab" type="button" role="tab"
+                            aria-selected="false" aria-controls="registerPanel">Đăng ký</button>
+                </div>
+
+                <!-- LOGIN PANEL -->
+                <section id="loginPanel" class="account-panel" role="tabpanel" aria-labelledby="loginTab">
+                    <div class="method-tabs" role="tablist" aria-label="Phương thức đăng nhập">
+                        <button class="method-tab active" id="passwordTab" type="button" role="tab"
+                                aria-selected="true" aria-controls="passwordPanel">Mật khẩu</button>
+                        <button class="method-tab" id="qrTab" type="button" role="tab"
+                                aria-selected="false" aria-controls="qrPanel">Mã QR</button>
+                    </div>
+
+                    <div id="passwordPanel" class="method-panel" role="tabpanel" aria-labelledby="passwordTab">
+                        <form id="loginForm">
+                            <div class="form-group">
+                                <label for="username">Số điện thoại hoặc Email</label>
+                                <input type="text" id="username" name="username"
+                                       placeholder="Nhập số điện thoại hoặc email"
+                                       autocomplete="username" required>
+                            </div>
+                            <div class="form-group">
+                                <label for="password">Mật khẩu</label>
+                                <div class="password-wrapper">
+                                    <input type="password" id="password" name="password"
+                                           placeholder="Nhập mật khẩu" autocomplete="current-password" required>
+                                    <button type="button" class="password-toggle" onclick="togglePasswordVisibility(this)" aria-label="Hiện mật khẩu">👁</button>
+                                </div>
+                            </div>
+                            <button class="primary-button" type="submit" id="loginButton">ĐĂNG NHẬP</button>
+                            <p class="form-message" id="loginMessage" role="status" aria-live="polite"></p>
+                        </form>
+                    </div>
+
+                    <div id="qrPanel" class="method-panel qr-panel" role="tabpanel"
+                         aria-labelledby="qrTab" hidden>
+                        <div class="qr-placeholder" aria-hidden="true">
+                            <span></span><span></span><span></span><span></span>
+                            <span></span><span></span><span></span><span></span>
+                            <span></span>
+                        </div>
+                        <h2>Đăng nhập bằng mã QR</h2>
+                        <p>Đăng nhập QR cần được kết nối với ứng dụng Văn phòng số. Hiện phương thức này chưa được bật.</p>
+                        <p class="form-message" id="qrMessage" role="status" aria-live="polite"></p>
+                    </div>
+                </section>
+
+                <!-- REGISTER PANEL -->
+                <section id="registerPanel" class="account-panel" role="tabpanel"
+                         aria-labelledby="registerTab" hidden>
+                    <form id="registerForm">
+                        <div class="form-group">
+                            <label for="fullName">Họ và tên</label>
+                            <input type="text" id="fullName" name="full_name"
+                                   placeholder="Nhập họ và tên" autocomplete="name" minlength="2" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="phone">Số điện thoại</label>
+                            <input type="tel" id="phone" name="phone" placeholder="Ví dụ: 0912345678"
+                                   autocomplete="tel" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email" name="email"
+                                   placeholder="name@example.com" autocomplete="email" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="position">Vị trí công việc</label>
+                            <select id="position" name="position" required>
+                                <option value="" selected disabled>Chọn vị trí công việc</option>
+                                <option value="Chủ tịch">Chủ tịch</option>
+                                <option value="Giám đốc">Giám đốc</option>
+                                <option value="Quản lý">Quản lý</option>
+                                <option value="Nhân viên">Nhân viên</option>
+                                <option value="Sinh viên thực tập">Sinh viên thực tập</option>
+                                <option value="Vị trí khác">Vị trí khác</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="otherPositionGroup" hidden>
+                            <label for="otherPosition">Vị trí khác</label>
+                            <input type="text" id="otherPosition" name="other_position"
+                                   placeholder="Nhập vị trí công việc">
+                        </div>
+                        <div class="form-group">
+                            <label for="company">Tên công ty</label>
+                            <input type="text" id="company" name="company"
+                                   placeholder="Nhập tên công ty" autocomplete="organization" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="registerPassword">Mật khẩu</label>
+                            <div class="password-wrapper">
+                                <input type="password" id="registerPassword" name="password"
+                                       placeholder="Tối thiểu 8 ký tự" minlength="8"
+                                       autocomplete="new-password" required>
+                                <button type="button" class="password-toggle" onclick="togglePasswordVisibility(this)" aria-label="Hiện mật khẩu">👁</button>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label for="confirmPassword">Xác nhận mật khẩu</label>
+                            <div class="password-wrapper">
+                                <input type="password" id="confirmPassword" name="confirm_password"
+                                       placeholder="Nhập lại mật khẩu" minlength="8"
+                                       autocomplete="new-password" required>
+                                <button type="button" class="password-toggle" onclick="togglePasswordVisibility(this)" aria-label="Hiện mật khẩu">👁</button>
+                            </div>
+                        </div>
+                        <button class="primary-button" type="submit" id="registerButton">TẠO TÀI KHOẢN</button>
+                        <p class="form-message" id="registerMessage" role="status" aria-live="polite"></p>
+                    </form>
+                </section>
+            </div>
+
+            <footer class="login-footer">
+                © 2026 - Hệ thống Văn phòng số tích hợp trợ lý thông minh
+            </footer>
+        </main>
+    </div>
+
+    <script>
+        function togglePasswordVisibility(btn) {
+            const input = btn.previousElementSibling;
+            const isPassword = input.type === 'password';
+            input.type = isPassword ? 'text' : 'password';
+            btn.textContent = isPassword ? '🙈' : '👁';
+        }
+    </script>
+    <script src="/static/js/auth.js"></script>
+</body>
+</html>

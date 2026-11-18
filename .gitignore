@@ -1,0 +1,35 @@
+# Môi trường ảo Python
+venv/
+.venv/
+env/
+
+# Cache & Build Python
+__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
+.coverage
+
+# Biến môi trường & Khóa bí mật
+.env
+.env.*
+!.env.example
+*.key
+*.pem
+credentials.json
+token.json
+google_tokens/
+
+# Database & Tệp tải lên tạm thời
+*.db
+*.db-*
+*.sqlite3
+*.sqlite3-*
+uploads/*
+!uploads/.gitkeep
+
+# IDE & Hệ điều hành
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db

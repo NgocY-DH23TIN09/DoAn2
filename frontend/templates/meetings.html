@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Phòng họp thông minh — Văn Phòng Số</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="/static/css/theme.css">
+    <script src="/static/js/global-prefs.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+        }
+
+        ::-webkit-scrollbar {
+            width: 5px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+
+        .nav-link-active {
+            color: #059669;
+            border-bottom: 2px solid #059669;
+            padding-bottom: 2px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
+    <script>
+        if (localStorage.getItem("ui_theme") === "dark") {
+            document.body.classList.add("dark-theme");
+        }
+    </script>
+
+    <!-- Header -->
+    <header
+        class="bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between sticky top-0 z-10 shadow-sm">
+        <div class="flex items-center gap-8">
+            <a href="/dashboard" class="flex items-center gap-2">
+                <span class="text-lg">🏢</span>
+                <span
+                    class="text-lg font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">NexusOffice</span>
+            </a>
+            <nav class="hidden md:flex gap-5 text-sm font-medium text-slate-500">
+                <a href="/dashboard" class="hover:text-indigo-600 transition">Tổng quan</a>
+                <a href="/documents" class="hover:text-indigo-600 transition">Tài liệu & Wiki AI</a>
+                <a href="/meetings" class="nav-link-active">Phòng họp thông minh</a>
+                <a href="/tasks" class="hover:text-indigo-600 transition">Công việc</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="flex-1 max-w-7xl w-full mx-auto p-6 grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+        <!-- Left: Meeting Form -->
+        <section class="lg:col-span-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-5">
+            <div>
+                <div class="flex items-center gap-2 mb-1">
+                    <span
+                        class="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">🎥</span>
+                    <div>
+                        <h2 class="text-base font-bold text-slate-800">Tạo phiên họp & Ghi chép thông minh</h2>
+                        <p class="text-xs text-slate-500">AI sẽ tự động chuẩn hóa tên biên bản, tóm tắt nội dung và tách
+                            đầu việc cần làm.</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div class="md:col-span-2">
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Chủ đề cuộc họp *</label>
+                    <input id="meetingTitle" type="text" placeholder="Ví dụ: Họp triển khai hệ thống Văn phòng số"
+                        class="w-full text-sm px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 focus:outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Ngày họp *</label>
+                    <input id="meetingDate" type="date"
+                        class="w-full text-sm px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition">
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Giờ bắt đầu (GMT+7)</label>
+                    <input id="meetingTime" type="time"
+                        class="w-full text-sm px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-600 mb-1.5">Thời lượng cuộc họp</label>
+                    <select id="meetingDuration"
+                        class="w-full text-sm px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition">
+                        <option value="30">30 phút</option>
+                        <option value="60" selected>60 phút</option>
+                        <option value="90">90 phút</option>
+                        <option value="120">120 phút</option>
+                    </select>
+                </div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1.5">Thành phần tham dự (cách nhau bởi dấu
+                    phẩy)</label>
+                <input id="meetingParticipants" type="text" placeholder="Nguyễn Văn A, Trần Thị B, Lê Văn C"
+                    class="w-full text-sm px-3.5 py-2.5 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition">
+            </div>
+
+            <!-- Google Calendar Section -->
+            <div
+                class="rounded-2xl border border-blue-100 bg-gradient-to-br from-blue-50 to-indigo-50/50 p-5 space-y-3">
+                <div class="flex items-center gap-2">
+                    <span class="text-lg">📅</span>
+                    <div>
+                        <h3 class="text-sm font-bold text-slate-800">Tạo lịch Google Meet</h3>
+                        <p class="text-xs text-slate-500 mt-0.5">Kết nối tài khoản Google cá nhân để tạo sự kiện trên
+                            lịch của bạn và lấy link tham gia.</p>
+                    </div>
+                </div>
+                <p id="googleCalendarStatus" class="text-xs text-slate-600 bg-white/60 px-3 py-2 rounded-lg"
+                    role="status" aria-live="polite">Đang kiểm tra kết nối Google Calendar...</p>
+                <div class="flex flex-wrap gap-2">
+                    <button id="btnConnectGoogle" type="button" onclick="connectGoogleCalendar()" hidden
+                        class="px-4 py-2 rounded-xl border border-blue-200 bg-white text-xs font-semibold text-blue-800 hover:bg-blue-50 transition">
+                        Kết nối Google Calendar
+                    </button>
+                    <button id="btnCreateGoogleMeet" type="button" onclick="createGoogleMeet()" disabled hidden
+                        class="px-4 py-2 rounded-xl bg-blue-600 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 transition shadow-sm">
+                        Tạo sự kiện & link Meet
+                    </button>
+                </div>
+                <div id="meetLinkResult" class="hidden break-words text-xs" aria-live="polite"></div>
+            </div>
+
+            <div>
+                <label class="block text-xs font-semibold text-slate-600 mb-1.5">Nội dung thảo luận / Transcript
+                    *</label>
+                <textarea id="meetingNotes" rows="8"
+                    placeholder="Nhập nội dung trao đổi trong cuộc họp...&#10;Ví dụ:&#10;- Thống nhất cấu trúc thư mục lưu trữ chung.&#10;- Anh Nam phụ trách hoàn thành module kết nối MongoDB trước ngày 20/11.&#10;- Chị Lan kiểm tra lại bộ dữ liệu mẫu OCR."
+                    class="w-full text-sm p-4 border border-slate-200 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:outline-none transition resize-none"></textarea>
+            </div>
+
+            <button onclick="generateMinutes()" id="btnGenerate"
+                class="w-full bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold py-3 rounded-xl shadow-sm hover:shadow-md transition-all">
+                ✨ Tổng hợp Biên bản & Trích xuất công việc AI
+            </button>
+        </section>
+
+        <!-- Right: Results & History -->
+        <section class="lg:col-span-6 space-y-6">
+            <!-- Result Card -->
+            <div id="resultCard" class="hidden bg-white p-6 rounded-2xl border border-emerald-200 shadow-sm space-y-4">
+                <div class="flex items-start justify-between gap-2 border-b border-slate-100 pb-3">
+                    <div>
+                        <span class="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">✓
+                            Biên bản chuẩn hóa</span>
+                        <h3 id="resFilename" class="font-bold text-slate-900 text-sm mt-2">BienBan_...</h3>
+                        <p id="resParticipants" class="text-xs text-slate-500 mt-0.5"></p>
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Tóm tắt nội dung chính
+                    </h4>
+                    <div id="resSummary"
+                        class="text-xs text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200 leading-relaxed">
+                    </div>
+                </div>
+
+                <div>
+                    <h4 class="text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">Đầu việc cần triển khai
+                        (Action Items)</h4>
+                    <ul id="resActions" class="space-y-2 text-xs text-slate-700"></ul>
+                </div>
+            </div>
+
+            <!-- Meeting History -->
+            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+                <div class="flex items-center gap-2 mb-4">
+                    <span class="text-base">📋</span>
+                    <h3 class="text-sm font-bold text-slate-800">Lịch sử phòng họp đã lưu</h3>
+                </div>
+                <div id="meetingHistoryList" class="divide-y divide-slate-100 space-y-1 max-h-80 overflow-y-auto">
+                    <p class="text-xs text-slate-400">Đang tải lịch sử cuộc họp...</p>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        function authHeaders(extra = {}) {
+            const token = localStorage.getItem("access_token");
+            return { ...extra, ...(token ? { Authorization: `Bearer ${token}` } : {}) };
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            if (!localStorage.getItem("access_token")) {
+                window.location.href = "/login";
+                return;
+            }
+            const suggestedStart = new Date(Date.now() + 60 * 60 * 1000);
+            const hcmParts = new Intl.DateTimeFormat("sv-SE", {
+                timeZone: "Asia/Ho_Chi_Minh",
+                year: "numeric",
+                month: "2-digit",
+                day: "2-digit",
+                hour: "2-digit",
+                minute: "2-digit",
+                hourCycle: "h23"
+            }).formatToParts(suggestedStart);
+            const getPart = type => hcmParts.find(part => part.type === type).value;
+            document.getElementById("meetingDate").value =
+                `${getPart("year")}-${getPart("month")}-${getPart("day")}`;
+            document.getElementById("meetingTime").value =
+                `${getPart("hour")}:${getPart("minute")}`;
+            loadMeetingHistory();
+            loadGoogleCalendarStatus();
+        });
+
+        async function loadGoogleCalendarStatus() {
+            const statusText = document.getElementById("googleCalendarStatus");
+            try {
+                const statusResponse = await fetch(
+                    "/api/v1/meetings/google/status",
+                    { headers: authHeaders() }
+                );
+                const status = await statusResponse.json();
+                if (!statusResponse.ok) {
+                    throw new Error(status.detail || "Không kiểm tra được kết nối Google.");
+                }
+
+                const connectButton = document.getElementById("btnConnectGoogle");
+                const createButton = document.getElementById("btnCreateGoogleMeet");
+                connectButton.hidden =
+                    status.status === "connected" || !status.credentials_configured;
+                createButton.hidden = false;
+                createButton.disabled = status.status !== "connected";
+
+                if (status.status === "connected") {
+                    statusText.textContent = "Google Calendar đã kết nối.";
+                } else if (status.status === "connecting") {
+                    statusText.textContent = "Đang chờ bạn cấp quyền trong cửa sổ Google...";
+                } else if (!status.credentials_configured) {
+                    statusText.textContent = "Chưa tìm thấy credentials.json trong thư mục dự án.";
+                } else if (status.status === "error") {
+                    statusText.textContent = "Kết nối thất bại; hãy thử kết nối lại Google Calendar.";
+                } else {
+                    statusText.textContent = "Chưa kết nối Google Calendar cá nhân. Kết nối để tạo cuộc họp.";
+                }
+            } catch (error) {
+                statusText.textContent = error.message || "Không kiểm tra được Google Calendar.";
+            }
+        }
+
+        async function connectGoogleCalendar() {
+            const button = document.getElementById("btnConnectGoogle");
+            button.disabled = true;
+            try {
+                const response = await fetch("/api/v1/meetings/google/connect", {
+                    method: "POST",
+                    headers: authHeaders()
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || "Không thể kết nối Google Calendar.");
+                document.getElementById("googleCalendarStatus").textContent =
+                    "Đã mở trình duyệt Google. Hãy cấp quyền để hoàn tất kết nối.";
+
+                for (let attempt = 0; attempt < 60; attempt += 1) {
+                    await new Promise(resolve => window.setTimeout(resolve, 2000));
+                    await loadGoogleCalendarStatus();
+                    const status = document.getElementById("googleCalendarStatus").textContent;
+                    if (status.includes("đã kết nối") || status.includes("Kết nối thất bại")) break;
+                }
+            } catch (error) {
+                document.getElementById("googleCalendarStatus").textContent = error.message;
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        async function createGoogleMeet() {
+            const title = document.getElementById("meetingTitle").value.trim();
+            const meetingDate = document.getElementById("meetingDate").value;
+            const meetingTime = document.getElementById("meetingTime").value;
+            const duration = Number(document.getElementById("meetingDuration").value);
+            if (!title || !meetingDate || !meetingTime) {
+                alert("Vui lòng nhập chủ đề, ngày và giờ họp.");
+                return;
+            }
+
+            const button = document.getElementById("btnCreateGoogleMeet");
+            const result = document.getElementById("meetLinkResult");
+            button.disabled = true;
+            result.classList.remove("hidden");
+            result.textContent = "Đang tạo sự kiện trên Google Calendar...";
+            try {
+                const response = await fetch("/api/v1/meetings/google/create", {
+                    method: "POST",
+                    headers: authHeaders({ "Content-Type": "application/json" }),
+                    body: JSON.stringify({
+                        title,
+                        start_at: `${meetingDate}T${meetingTime}:00`,
+                        duration_minutes: duration
+                    })
+                });
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.detail || "Không tạo được Google Meet.");
+
+                result.replaceChildren();
+                const message = document.createElement("p");
+                message.textContent = data.message;
+                result.appendChild(message);
+                if (data.meet_url) {
+                    const link = document.createElement("a");
+                    link.href = data.meet_url;
+                    link.target = "_blank";
+                    link.rel = "noopener noreferrer";
+                    link.className = "mt-1 inline-block font-semibold text-blue-700 underline";
+                    link.textContent = data.meet_url;
+                    result.appendChild(link);
+                }
+                if (data.calendar_url) {
+                    const calendarLink = document.createElement("a");
+                    calendarLink.href = data.calendar_url;
+                    calendarLink.target = "_blank";
+                    calendarLink.rel = "noopener noreferrer";
+                    calendarLink.className = "mt-1 block text-blue-700 underline";
+                    calendarLink.textContent = "Mở sự kiện trên Google Calendar";
+                    result.appendChild(calendarLink);
+                }
+            } catch (error) {
+                result.textContent = error.message || "Không thể kết nối Google Calendar.";
+            } finally {
+                button.disabled = false;
+            }
+        }
+
+        async function generateMinutes() {
+            const title = document.getElementById("meetingTitle").value.trim();
+            const meeting_date = document.getElementById("meetingDate").value;
+            const rawParticipants = document.getElementById("meetingParticipants").value;
+            const raw_notes = document.getElementById("meetingNotes").value.trim();
+
+            if (!title || !meeting_date || !raw_notes) {
+                alert("Vui lòng nhập đầy đủ chủ đề, ngày họp và nội dung cuộc họp.");
+                return;
+            }
+
+            const participants = rawParticipants.split(",").map(s => s.trim()).filter(Boolean);
+            const btn = document.getElementById("btnGenerate");
+            btn.disabled = true;
+            btn.textContent = "AI đang phân tích biên bản...";
+
+            try {
+                const res = await fetch("/api/v1/meetings/generate-minutes", {
+                    method: "POST",
+                    headers: authHeaders({ "Content-Type": "application/json" }),
+                    body: JSON.stringify({ title, meeting_date, participants, raw_notes })
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.detail || "Lỗi xử lý biên bản");
+
+                renderMeetingResult(data);
+                await loadMeetingHistory();
+            } catch (err) {
+                alert("Lỗi: " + err.message);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = "✨ Tổng hợp Biên bản & Trích xuất công việc AI";
+            }
+        }
+
+        function renderMeetingResult(data) {
+            document.getElementById("resultCard").classList.remove("hidden");
+            document.getElementById("resFilename").textContent = data.standard_filename;
+            document.getElementById("resParticipants").textContent =
+                `Ngày: ${data.meeting_date} | Tham dự: ${(data.participants || []).join(", ") || "Chưa ghi nhận"}`;
+            document.getElementById("resSummary").textContent = data.ai_summary;
+
+            const ul = document.getElementById("resActions");
+            ul.innerHTML = (data.action_items || []).map(item =>
+                `<li class="flex items-start gap-2 bg-emerald-50 border border-emerald-100 px-3 py-2.5 rounded-xl">
+                    <span class="text-emerald-600 font-bold mt-0.5">&#10003;</span>
+                    <span>${escapeHtml(item)}</span>
+                </li>`
+            ).join("");
+        }
+
+        async function loadMeetingHistory() {
+            try {
+                const res = await fetch("/api/v1/meetings/", { headers: authHeaders() });
+                if (res.status === 401) {
+                    localStorage.removeItem("access_token");
+                    window.location.href = "/login";
+                    return;
+                }
+                if (!res.ok) throw new Error("Không thể tải lịch sử cuộc họp.");
+                const data = await res.json();
+                const items = data.items || [];
+                const container = document.getElementById("meetingHistoryList");
+                const storageWarning = data.storage_warning
+                    ? `<p class="text-xs text-amber-700 py-2">${escapeHtml(data.storage_warning)}</p>`
+                    : "";
+
+                if (items.length === 0) {
+                    container.innerHTML = storageWarning +
+                        `<p class="text-xs text-slate-400 py-4 text-center">Chưa có biên bản cuộc họp nào được lưu.</p>`;
+                    return;
+                }
+
+                container.innerHTML = storageWarning + items.map((meeting, index) => `
+                    <button type="button" data-meeting-index="${index}"
+                         class="block w-full text-left p-3 cursor-pointer hover:bg-slate-50 rounded-xl transition">
+                        <div class="flex justify-between items-center">
+                            <span class="text-xs font-bold text-slate-800">${escapeHtml(meeting.title)}</span>
+                            <span class="text-[11px] text-slate-400">${escapeHtml(meeting.meeting_date)}</span>
+                        </div>
+                        <span class="block text-[11px] text-emerald-700 truncate mt-0.5">${escapeHtml(meeting.standard_filename)}</span>
+                    </button>
+                `).join("");
+                container.querySelectorAll("[data-meeting-index]").forEach(button => {
+                    button.addEventListener("click", () => {
+                        renderMeetingResult(items[Number(button.dataset.meetingIndex)]);
+                    });
+                });
+            } catch (error) {
+                document.getElementById("meetingHistoryList").textContent = error.message;
+            }
+        }
+
+        function escapeHtml(str) {
+            return String(str).replace(/[&<>"']/g, m => ({
+                "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+            }[m]));
+        }
+    </script>
+</body>
+
+</html>

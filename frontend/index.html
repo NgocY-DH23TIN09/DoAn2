@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NexusAI - Hệ thống Văn phòng số thông minh</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        /* Tùy chỉnh thanh cuộn cho mượt */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f5f9; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .ai-gradient { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 font-sans h-screen flex overflow-hidden">
+
+    <!-- 1. LEFT SIDEBAR (Thanh điều hướng trái) -->
+    <aside class="w-64 bg-slate-900 text-slate-300 flex flex-col justify-between transition-all duration-300 shrink-0">
+        <div>
+            <!-- Logo -->
+            <div class="h-16 flex items-center gap-3 px-6 border-b border-slate-800">
+                <div class="w-8 h-8 rounded-lg ai-gradient flex items-center justify-center text-white font-bold shadow-lg">
+                    <i data-lucide="sparkles" class="w-5 h-5"></i>
+                </div>
+                <span class="text-white font-bold text-lg tracking-wide">Nexus<span class="text-indigo-400">Office</span></span>
+            </div>
+
+            <!-- Menu Navigation -->
+            <nav class="p-4 space-y-1.5" id="sidebar-menu">
+                <button onclick="switchTab('dashboard', this)" class="nav-btn active w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg bg-indigo-600 text-white font-medium transition">
+                    <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                    <span>Tổng quan (Dashboard)</span>
+                </button>
+                <button onclick="switchTab('tasks', this)" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition">
+                    <i data-lucide="check-square" class="w-5 h-5"></i>
+                    <span>Quản lý Công việc</span>
+                    <span class="ml-auto bg-indigo-500/20 text-indigo-300 text-xs py-0.5 px-2 rounded-full">5</span>
+                </button>
+                <button onclick="switchTab('docs', this)" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition">
+                    <i data-lucide="file-text" class="w-5 h-5"></i>
+                    <span>Tài liệu & Wiki AI</span>
+                </button>
+                <button onclick="switchTab('meetings', this)" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition">
+                    <i data-lucide="video" class="w-5 h-5"></i>
+                    <span>Phòng họp thông minh</span>
+                </button>
+                <button onclick="switchTab('workflow', this)" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition">
+                    <i data-lucide="git-pull-request" class="w-5 h-5"></i>
+                    <span>Trình ký & Phê duyệt</span>
+                </button>
+            </nav>
+        </div>
+
+        <!-- User Profile -->
+        <div class="p-4 border-t border-slate-800">
+            <div class="flex items-center gap-3 p-2 rounded-lg">
+                <div id="profile-avatar" aria-hidden="true" class="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-bold">?</div>
+                <div class="overflow-hidden">
+                    <p id="profile-name" class="text-sm font-medium text-white truncate">Đang tải...</p>
+                    <p id="profile-position" class="text-xs text-slate-400 truncate"></p>
+                </div>
+                <button type="button" onclick="logout()" title="Đăng xuất" aria-label="Đăng xuất"
+                        class="ml-auto p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg">
+                    <i data-lucide="log-out" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- 2. MAIN CONTENT AREA (Khu vực làm việc trung tâm) -->
+    <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
+        
+        <!-- TOP HEADER BAR -->
+        <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
+            <!-- AI Semantic Search -->
+            <div class="relative w-96 max-w-full">
+                <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3"></i>
+                <input type="text" placeholder="Hỏi AI hoặc tìm tài liệu theo ngữ cảnh..." 
+                    class="w-full pl-10 pr-4 py-2 bg-slate-100 border-transparent focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 rounded-lg text-sm outline-none transition">
+            </div>
+
+            <!-- Right Actions -->
+            <div class="flex items-center gap-3">
+                <button class="p-2 text-slate-500 hover:bg-slate-100 rounded-lg relative">
+                    <i data-lucide="bell" class="w-5 h-5"></i>
+                    <span class="w-2 h-2 bg-rose-500 rounded-full absolute top-2 right-2"></span>
+                </button>
+                <button onclick="toggleAI()" class="flex items-center gap-2 ai-gradient text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:opacity-95 transition">
+                    <i data-lucide="bot" class="w-4 h-4"></i>
+                    <span>Trợ lý AI</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- WORKSPACE CONTENT (Thay đổi theo Tab) -->
+        <main class="flex-1 overflow-y-auto p-6">
+            
+            <!-- TAB 1: DASHBOARD -->
+            <div id="tab-dashboard" class="tab-content space-y-6">
+                <!-- AI Daily Briefing Banner -->
+                <div class="bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 border border-indigo-100 rounded-2xl p-6 shadow-sm">
+                    <div class="flex items-start gap-4">
+                        <div class="p-3 bg-indigo-600 text-white rounded-xl shrink-0">
+                            <i data-lucide="sparkles" class="w-6 h-6"></i>
+                        </div>
+                        <div class="flex-1">
+                            <h2 class="text-lg font-bold text-slate-800">Chào buổi sáng, <span id="greeting-name">bạn</span>! Đây là tóm tắt đầu ngày từ AI:</h2>
+                            <p class="text-slate-600 text-sm mt-1 leading-relaxed">
+                                Hôm nay bạn có <strong>2 cuộc họp quan trọng</strong> và <strong>3 công việc đến hạn</strong>. Báo cáo doanh thu Q3 từ phòng Kinh doanh đã được gửi lúc 8:15 AM và đã được AI tóm tắt sẵn các điểm chính.
+                            </p>
+                            <div class="mt-4 flex flex-wrap gap-2">
+                                <button onclick="askAI('Tóm tắt báo cáo doanh thu Q3 giúp tôi')" class="text-xs bg-white border border-indigo-200 text-indigo-700 px-3 py-1.5 rounded-full font-medium hover:bg-indigo-600 hover:text-white transition">
+                                    ✨ Tóm tắt báo cáo Q3
+                                </button>
+                                <button onclick="askAI('Lên lịch trình ưu tiên công việc hôm nay')" class="text-xs bg-white border border-indigo-200 text-indigo-700 px-3 py-1.5 rounded-full font-medium hover:bg-indigo-600 hover:text-white transition">
+                                    📅 Sắp xếp lịch làm việc
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Grid 2 Columns: Priority Tasks & Upcoming Meetings -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Priority Tasks -->
+                    <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="flame" class="w-5 h-5 text-orange-500"></i>
+                                Công việc ưu tiên (AI Đề xuất)
+                            </h3>
+                            <span class="text-xs text-slate-400">Tự động xếp hạng</span>
+                        </div>
+                        <div class="space-y-3">
+                            <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:bg-slate-50 cursor-pointer">
+                                <input type="checkbox" class="w-4 h-4 text-indigo-600 rounded">
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-slate-800">Phê duyệt ngân sách Marketing tháng 11</p>
+                                    <span class="text-xs text-rose-600 bg-rose-50 px-2 py-0.5 rounded font-medium">Hạn: 11:30 hôm nay</span>
+                                </div>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:bg-slate-50 cursor-pointer">
+                                <input type="checkbox" class="w-4 h-4 text-indigo-600 rounded">
+                                <div class="flex-1">
+                                    <p class="text-sm font-medium text-slate-800">Review giao diện tính năng AI Chatbot</p>
+                                    <span class="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded font-medium">Hạn: 16:00 hôm nay</span>
+                                </div>
+                            </label>
+                            <label class="flex items-center gap-3 p-3 rounded-lg border border-slate-100 hover:bg-slate-50 cursor-pointer">
+                                <input type="checkbox" checked class="w-4 h-4 text-indigo-600 rounded">
+                                <div class="flex-1 line-through text-slate-400">
+                                    <p class="text-sm font-medium">Gửi biên bản họp giao ban tuần</p>
+                                    <span class="text-xs">Đã hoàn thành</span>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Smart Meetings -->
+                    <div class="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="font-bold text-slate-800 flex items-center gap-2">
+                                <i data-lucide="calendar" class="w-5 h-5 text-indigo-600"></i>
+                                Lịch họp hôm nay
+                            </h3>
+                        </div>
+                        <div class="space-y-3">
+                            <div class="p-3.5 rounded-lg border border-indigo-100 bg-indigo-50/40 flex items-center justify-between">
+                                <div>
+                                    <span class="text-xs font-bold text-indigo-600">10:00 - 11:00 AM</span>
+                                    <h4 class="font-semibold text-slate-800 text-sm mt-0.5">Họp Sprint Planning - Dự án Văn phòng số</h4>
+                                    <p class="text-xs text-slate-500 mt-1">8 thành viên • Có bật AI Gỡ băng tự động</p>
+                                </div>
+                                <button class="px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium rounded-lg hover:bg-indigo-700">
+                                    Tham gia
+                                </button>
+                            </div>
+                            <div class="p-3.5 rounded-lg border border-slate-100 flex items-center justify-between">
+                                <div>
+                                    <span class="text-xs font-semibold text-slate-500">14:30 - 15:30 PM</span>
+                                    <h4 class="font-semibold text-slate-800 text-sm mt-0.5">Trao đổi với đối tác hạ tầng Cloud</h4>
+                                    <p class="text-xs text-slate-500 mt-1">Phòng họp B2 / Online</p>
+                                </div>
+                                <button onclick="askAI('Chuẩn bị tài liệu cho cuộc họp đối tác Cloud lúc 14:30')" class="px-3 py-1.5 border border-slate-200 text-slate-700 text-xs font-medium rounded-lg hover:bg-slate-50">
+                                    AI Chuẩn bị
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 2: TASKS (Kanban Board mẫu) -->
+            <div id="tab-tasks" class="tab-content hidden space-y-4">
+                <div class="flex justify-between items-center">
+                    <h2 class="text-xl font-bold">Bảng quản lý công việc (Kanban)</h2>
+                    <button onclick="askAI('Tự động chia nhỏ công việc: Triển khai hệ thống AI')" class="flex items-center gap-2 bg-indigo-50 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-lg text-sm font-medium hover:bg-indigo-100">
+                        <i data-lucide="wand-2" class="w-4 h-4"></i> AI Chia nhỏ Task
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div class="bg-slate-100 p-4 rounded-xl">
+                        <h3 class="font-semibold text-sm text-slate-700 mb-3">CẦN LÀM (2)</h3>
+                        <div class="space-y-3">
+                            <div class="bg-white p-3.5 rounded-lg shadow-sm border border-slate-200">
+                                <span class="text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-medium">UI/UX</span>
+                                <p class="font-medium text-sm mt-2">Thiết kế luồng duyệt đơn nghỉ phép tự động</p>
+                            </div>
+                            <div class="bg-white p-3.5 rounded-lg shadow-sm border border-slate-200">
+                                <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-medium">Backend</span>
+                                <p class="font-medium text-sm mt-2">Tích hợp API tìm kiếm ngữ nghĩa (Vector DB)</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="bg-slate-100 p-4 rounded-xl">
+                        <h3 class="font-semibold text-sm text-indigo-700 mb-3">ĐANG THỰC HIỆN (1)</h3>
+                        <div class="bg-white p-3.5 rounded-lg shadow-sm border-l-4 border-indigo-600">
+                            <span class="text-xs bg-amber-100 text-amber-700 px-2 py-0.5 rounded font-medium">AI Core</span>
+                            <p class="font-medium text-sm mt-2">Huấn luyện mô hình tóm tắt văn bản nội bộ</p>
+                        </div>
+                    </div>
+                    <div class="bg-slate-100 p-4 rounded-xl">
+                        <h3 class="font-semibold text-sm text-emerald-700 mb-3">HOÀN THÀNH (1)</h3>
+                        <div class="bg-white p-3.5 rounded-lg shadow-sm opacity-75">
+                            <p class="font-medium text-sm line-through">Khởi tạo kiến trúc Microservices</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- TAB 3, 4, 5 (Placeholder mô phỏng nhanh) -->
+            <div id="tab-docs" class="tab-content hidden bg-white p-6 rounded-xl border border-slate-200">
+                <h2 class="text-xl font-bold mb-2">Trình soạn thảo Tài liệu Thông minh</h2>
+                <p class="text-sm text-slate-500 mb-4">Gõ nội dung bên dưới hoặc dùng AI để tự động soạn thảo văn bản hành chính.</p>
+                <textarea class="w-full h-64 p-4 border border-slate-200 rounded-lg focus:ring-2 focus:ring-indigo-200 outline-none text-sm" placeholder="Nhập nội dung tài liệu tại đây... Ví dụ: Cộng hòa xã hội chủ nghĩa Việt Nam..."></textarea>
+            </div>
+
+            <div id="tab-meetings" class="tab-content hidden bg-white p-6 rounded-xl border border-slate-200">
+                <h2 class="text-xl font-bold mb-2">Phòng họp thông minh & Gỡ băng tự động (Live Transcript)</h2>
+                <p class="text-sm text-slate-500">Hệ thống tự động nhận diện giọng nói từng thành viên và trích xuất Action Items sau cuộc họp.</p>
+            </div>
+
+            <div id="tab-workflow" class="tab-content hidden bg-white p-6 rounded-xl border border-slate-200">
+                <h2 class="text-xl font-bold mb-2">Quy trình & Phê duyệt điện tử (E-Office)</h2>
+                <p class="text-sm text-slate-500">AI tự động kiểm tra tính hợp lệ của chứng từ trước khi trình lãnh đạo ký duyệt.</p>
+            </div>
+
+        </main>
+    </div>
+
+    <!-- 3. RIGHT DRAWER: AI COPILOT PANEL (Ngăn Trợ lý thông minh) -->
+    <aside id="ai-drawer" class="w-80 bg-white border-l border-slate-200 flex flex-col shrink-0 transition-all duration-300">
+        <!-- Header -->
+        <div class="h-16 px-4 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+            <div class="flex items-center gap-2">
+                <div class="w-7 h-7 rounded-lg ai-gradient flex items-center justify-center text-white">
+                    <i data-lucide="bot" class="w-4 h-4"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-sm text-slate-800">Nexus Copilot</h3>
+                    <p class="text-[11px] text-emerald-600 font-medium">● Sẵn sàng hỗ trợ</p>
+                </div>
+            </div>
+            <button onclick="toggleAI()" class="text-slate-400 hover:text-slate-600">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+        </div>
+
+        <!-- Chat Messages -->
+        <div id="chat-box" class="flex-1 p-4 overflow-y-auto space-y-4 text-sm">
+            <div class="bg-slate-100 text-slate-800 p-3 rounded-2xl rounded-tl-none">
+                Xin chào! Tôi là trợ lý ảo văn phòng của bạn. Tôi có thể giúp bạn <strong>tóm tắt tài liệu, tạo công việc, soạn email</strong> hoặc <strong>tra cứu quy định công ty</strong>.
+            </div>
+        </div>
+
+        <!-- Input Box -->
+        <div class="p-3 border-t border-slate-200 bg-white">
+            <div class="flex items-center gap-2 bg-slate-100 rounded-xl p-1.5 border border-slate-200 focus-within:border-indigo-500 focus-within:bg-white">
+                <input id="ai-input" type="text" placeholder="Nhập yêu cầu cho AI..." 
+                    onkeypress="if(event.key === 'Enter') sendMessage()"
+                    class="flex-1 bg-transparent px-2 py-1 text-sm outline-none">
+                <button onclick="sendMessage()" class="p-2 ai-gradient text-white rounded-lg hover:opacity-90">
+                    <i data-lucide="send" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+    </aside>
+
+    <!-- JAVASCRIPT XỬ LÝ TƯƠNG TÁC -->
+    <script>
+        const APP_BASE_URL = window.location.protocol === 'file:'
+            ? 'hhttp://127.0.0.1:8000/frontend/'
+            : window.location.origin + '/frontend/';
+
+        if (window.location.protocol === 'file:') {
+            window.location.replace(APP_BASE_URL);
+        }
+
+        // Khởi tạo icons
+        if (window.lucide) {
+            lucide.createIcons();
+        }
+        loadCurrentUser();                                                                                                                                                                                                                                                                                                                                      
+
+        // Chuyển đổi giữa các Tab chức năng
+        function switchTab(tabName, selectedButton) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById('tab-' + tabName).classList.remove('hidden');
+
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('bg-indigo-600', 'text-white');
+                btn.classList.add('hover:bg-slate-800');
+            });
+            selectedButton.classList.add('bg-indigo-600', 'text-white');
+            selectedButton.classList.remove('hover:bg-slate-800');
+        }
+
+        async function loadCurrentUser() {
+            const token = localStorage.getItem('access_token');
+            if (!token) {
+                window.location.replace('/login');
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/auth/me', {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (!response.ok) {
+                    localStorage.removeItem('access_token');
+                    window.location.replace('/login');
+                    return;
+                }
+
+                const user = await response.json();
+                const displayName = user.full_name || 'Người dùng';
+                document.getElementById('profile-name').textContent = displayName;
+                document.getElementById('profile-position').textContent =
+                    [user.position, user.company].filter(Boolean).join(' · ') || 'Thành viên';
+                document.getElementById('greeting-name').textContent = displayName;
+                document.getElementById('profile-avatar').textContent =
+                    displayName.trim().charAt(0).toLocaleUpperCase('vi');
+            } catch (error) {
+                console.error('Không thể tải thông tin tài khoản:', error);
+                window.location.replace('/');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('access_token');
+            window.location.replace('/');
+        }
+
+        // Bật/tắt khung Trợ lý AI bên phải
+        function toggleAI() {
+            const drawer = document.getElementById('ai-drawer');
+            drawer.classList.toggle('hidden');
+        }
+
+        // Gửi câu hỏi mẫu từ nút bấm nhanh
+        function askAI(promptText) {
+            const drawer = document.getElementById('ai-drawer');
+            drawer.classList.remove('hidden');
+            document.getElementById('ai-input').value = promptText;
+            sendMessage();
+        }
+
+        // Xử lý chat giả lập với AI
+        function sendMessage() {
+            const input = document.getElementById('ai-input');
+            const chatBox = document.getElementById('chat-box');
+            const text = input.value.trim();
+            if (!text) return;
+
+            // Tin nhắn của User
+            const userMessage = document.createElement('div');
+            userMessage.className = 'flex justify-end';
+            const userBubble = document.createElement('div');
+            userBubble.className = 'bg-indigo-600 text-white p-3 rounded-2xl rounded-tr-none max-w-[85%]';
+            userBubble.textContent = text;
+            userMessage.appendChild(userBubble);
+            chatBox.appendChild(userMessage);
+            input.value = '';
+            chatBox.scrollTop = chatBox.scrollHeight;
+
+            // Phản hồi giả lập của AI sau 0.6 giây
+            setTimeout(() => {
+                let reply = `Tôi đã tiếp nhận yêu cầu: "${text}". Hệ thống đang phân tích dữ liệu nội bộ để xử lý cho bạn!`;
+                
+                if (text.includes("Q3")) {
+                    reply = "📊 Tóm tắt Báo cáo Q3:\n• Doanh thu đạt 112% kế hoạch.\n• Chi phí vận hành giảm 8% nhờ tự động hóa.\n• Đề xuất: Tăng ngân sách cho mảng Sản phẩm số trong Q4.";
+                } else if (text.includes("chia nhỏ")) {
+                    reply = "✅ Đã tạo 3 đầu việc con:\n1. Khảo sát nhu cầu phòng ban.\n2. Thiết kế kiến trúc dữ liệu.\n3. Kiểm thử bảo mật phân quyền.";
+                }
+
+                const assistantMessage = document.createElement('div');
+                assistantMessage.className = 'bg-slate-100 text-slate-800 p-3 rounded-2xl rounded-tl-none max-w-[90%] leading-relaxed whitespace-pre-line';
+                assistantMessage.textContent = reply;
+                chatBox.appendChild(assistantMessage);
+                chatBox.scrollTop = chatBox.scrollHeight;
+            }, 600);
+        }
+    </script>
+</body>
+</html>

@@ -27,6 +27,7 @@ GOOGLE_CALENDAR_SCOPES = ["https://www.googleapis.com/auth/calendar.events"]
 MEETING_TIMEZONE = timezone(timedelta(hours=7), name="Asia/Ho_Chi_Minh")
 _oauth_lock = threading.Lock()
 _oauth_statuses: dict[str, str] = {}
+_oauth_authorization_urls: dict[str, str] = {}
 
 
 class GoogleMeetError(Exception):
@@ -91,20 +92,29 @@ def _get_google_calendar_service(user_id: str):
         raise GoogleMeetError("Không khởi tạo được Google Calendar API.") from exc
 
 
-def _run_google_oauth(user_id: str):
+def _run_google_oauth(user_id: str, ready: threading.Event, result: dict):
     try:
         from google_auth_oauthlib.flow import InstalledAppFlow
 
-        flow = InstalledAppFlow.from_client_secrets_file(
-            str(GOOGLE_CLIENT_SECRETS),
-            GOOGLE_CALENDAR_SCOPES,
+        class BrowserAuthorizationFlow(InstalledAppFlow):
+            def authorization_url(self, **kwargs):
+                authorization_url, state = super().authorization_url(**kwargs)
+                result["authorization_url"] = authorization_url
+                ready.set()
+                return authorization_url, state
+
+        flow = BrowserAuthorizationFlow.from_client_secrets_file(
+            str(GOOGLE_CLIENT_SECRETS), scopes=GOOGLE_CALENDAR_SCOPES
         )
         credentials = flow.run_local_server(
             host="localhost",
             port=0,
-            open_browser=True,
+            open_browser=False,
+            authorization_prompt_message=None,
+            success_message="Kết nối Google Calendar thành công. Hãy quay lại ứng dụng.",
             access_type="offline",
             prompt="consent",
+            timeout_seconds=600,
         )
         GOOGLE_TOKEN_DIR.mkdir(parents=True, exist_ok=True)
         token_file = _google_token_file(user_id)
@@ -113,19 +123,33 @@ def _run_google_oauth(user_id: str):
         temporary_token.replace(token_file)
         with _oauth_lock:
             _oauth_statuses[user_id] = "connected"
+            _oauth_authorization_urls.pop(user_id, None)
     except Exception:
         logger.exception("Google Calendar authorization failed.")
         with _oauth_lock:
             _oauth_statuses[user_id] = "error"
+            _oauth_authorization_urls.pop(user_id, None)
+        result["error"] = True
+        ready.set()
 
 
-def _start_google_oauth(user_id: str) -> None:
+def _start_google_oauth(user_id: str) -> str:
+    ready = threading.Event()
+    result: dict[str, str | bool] = {}
     thread = threading.Thread(
         target=_run_google_oauth,
-        args=(user_id,),
+        args=(user_id, ready, result),
         daemon=True,
     )
     thread.start()
+    if not ready.wait(timeout=15):
+        raise GoogleMeetError("Không khởi tạo được cửa sổ xác thực Google. Vui lòng thử lại.")
+    if result.get("error"):
+        raise GoogleMeetError("Không khởi tạo được OAuth Google. Kiểm tra credentials.json.")
+    authorization_url = result.get("authorization_url")
+    if not isinstance(authorization_url, str):
+        raise GoogleMeetError("Google không trả về liên kết cấp quyền.")
+    return authorization_url
 
 
 def _google_connection_status(user_id: str) -> dict[str, str | bool]:
@@ -266,14 +290,25 @@ def connect_google_calendar(current_user: dict = Depends(get_current_user)):
     connection_status = _google_connection_status(user_id)["status"]
     with _oauth_lock:
         if _oauth_statuses.get(user_id) == "connecting":
-            return {"status": "connecting"}
+            return {
+                "status": "connecting",
+                "authorization_url": _oauth_authorization_urls.get(user_id),
+            }
         if connection_status == "connected":
             return {"status": "connected"}
         _oauth_statuses[user_id] = "connecting"
-    _start_google_oauth(user_id)
+    try:
+        authorization_url = _start_google_oauth(user_id)
+    except GoogleMeetError as exc:
+        with _oauth_lock:
+            _oauth_statuses[user_id] = "error"
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    with _oauth_lock:
+        _oauth_authorization_urls[user_id] = authorization_url
     return {
         "status": "connecting",
-        "message": "Trình duyệt sẽ mở trang Google để cấp quyền Calendar.",
+        "authorization_url": authorization_url,
+        "message": "Đã mở trang Google trong cửa sổ mới để cấp quyền Calendar.",
     }
 
 

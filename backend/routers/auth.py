@@ -73,6 +73,8 @@ def login(data: LoginRequest):
     })
     if not user or not verify_password(data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Tên đăng nhập hoặc mật khẩu không đúng")
+    if not user.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Tài khoản đã bị khóa.")
 
     token = create_access_token({"sub": str(user["_id"]), "role": user.get("role", "employee")})
     return {"access_token": token, "token_type": "bearer"}

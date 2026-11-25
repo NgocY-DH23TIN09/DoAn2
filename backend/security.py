@@ -45,7 +45,10 @@ def hash_password(password: str):
 
 # Kiểm tra mật khẩu
 def verify_password(password: str, hashed_password: str):
-    return password_hash.verify(password, hashed_password)
+    try:
+        return password_hash.verify(password, hashed_password)
+    except (AttributeError, ValueError, TypeError):
+        return False
 
 
 # Tạo JWT token

@@ -105,6 +105,8 @@ def decide_approval(
     item = approvals_collection.find_one({"_id": ObjectId(approval_id)})
     if not item:
         raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ trình ký.")
+    if item.get("status") != "pending":
+        raise HTTPException(status_code=409, detail="Hồ sơ trình ký đã được xử lý.")
 
     if item["approver_id"] != current_user["id"] and current_user.get("role") != "admin":
         raise HTTPException(status_code=403, detail="Bạn không phải người được chỉ định ký duyệt hồ sơ này.")

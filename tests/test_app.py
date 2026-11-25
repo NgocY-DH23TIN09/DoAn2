@@ -166,7 +166,10 @@ def test_employee_can_connect_and_create_personal_google_meet(monkeypatch, tmp_p
     monkeypatch.setattr(
         meetings_router,
         "_start_google_oauth",
-        lambda requested_user_id: started_oauth_for.append(requested_user_id),
+        lambda requested_user_id: (
+            started_oauth_for.append(requested_user_id)
+            or "https://accounts.google.com/o/oauth2/v2/auth?state=test"
+        ),
     )
 
     connect_response = client.post(
@@ -176,6 +179,9 @@ def test_employee_can_connect_and_create_personal_google_meet(monkeypatch, tmp_p
 
     assert connect_response.status_code == 200
     assert connect_response.json()["status"] == "connecting"
+    assert connect_response.json()["authorization_url"].startswith(
+        "https://accounts.google.com/"
+    )
     assert started_oauth_for == [user_id]
 
     class FakeRequest:
@@ -215,6 +221,68 @@ def test_employee_can_connect_and_create_personal_google_meet(monkeypatch, tmp_p
     assert create_response.json()["meet_url"] == "https://meet.google.com/employee-link"
     assert service_user_ids == [user_id]
     meetings_router._oauth_statuses.pop(user_id, None)
+    meetings_router._oauth_authorization_urls.pop(user_id, None)
+
+
+def test_google_calendar_authorization_url_uses_browser_without_server_browser(
+    monkeypatch, tmp_path
+):
+    import json
+    import threading
+    from google_auth_oauthlib.flow import Flow, InstalledAppFlow
+    from backend.routers import meetings as meetings_router
+
+    credentials_file = tmp_path / "credentials.json"
+    credentials_file.write_text(
+        json.dumps({
+            "installed": {
+                "client_id": "test-client-id",
+                "client_secret": "test-client-secret",
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+                "redirect_uris": ["http://localhost"],
+            }
+        }),
+        encoding="utf-8",
+    )
+    token_dir = tmp_path / "tokens"
+    monkeypatch.setattr(meetings_router, "GOOGLE_CLIENT_SECRETS", credentials_file)
+    monkeypatch.setattr(meetings_router, "GOOGLE_TOKEN_DIR", token_dir)
+    monkeypatch.setattr(
+        Flow,
+        "authorization_url",
+        lambda self, **kwargs: (
+            "https://accounts.google.com/o/oauth2/v2/auth?state=test",
+            "test-state",
+        ),
+    )
+    flow_options = {}
+
+    class FakeCredentials:
+        def to_json(self):
+            return '{"token":"test-only"}'
+
+    def fake_run_local_server(self, **kwargs):
+        flow_options.update(kwargs)
+        self.authorization_url()
+        return FakeCredentials()
+
+    monkeypatch.setattr(InstalledAppFlow, "run_local_server", fake_run_local_server)
+    ready = threading.Event()
+    result = {}
+
+    meetings_router._run_google_oauth("test-user", ready, result)
+
+    assert ready.is_set()
+    assert result["authorization_url"].startswith("https://accounts.google.com/")
+    assert flow_options["open_browser"] is False
+    assert flow_options["timeout_seconds"] == 600
+    assert (token_dir / "test-user.json").read_text(encoding="utf-8") == (
+        '{"token":"test-only"}'
+    )
+    assert meetings_router._oauth_statuses["test-user"] == "connected"
+    meetings_router._oauth_statuses.pop("test-user", None)
+    meetings_router._oauth_authorization_urls.pop("test-user", None)
 
 
 def test_google_meet_rejects_past_start_without_calling_calendar(monkeypatch):

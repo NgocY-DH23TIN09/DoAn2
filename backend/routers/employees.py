@@ -1,5 +1,5 @@
 from datetime import datetime, timezone
-from typing import Optional
+from typing import Literal, Optional
 from uuid import uuid4
 
 from bson import ObjectId
@@ -33,7 +33,7 @@ class EmployeeUpdate(BaseModel):
     phone: Optional[str] = None
     position: Optional[str] = None
     department: Optional[str] = None
-    role: Optional[str] = None
+    role: Optional[Literal["admin", "manager", "employee"]] = None
     is_active: Optional[bool] = None
 
 

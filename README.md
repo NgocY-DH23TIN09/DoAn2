@@ -43,7 +43,7 @@ Mở `http://127.0.0.1:8000`. Giao diện đăng nhập ở `/login`; các API q
 
 ## Google Calendar / Google Meet
 
-Đặt OAuth client file loại Desktop (`credentials.json`) ở thư mục dự án, bật Google Calendar API cho project Google Cloud và cấu hình OAuth consent screen. Mỗi người dùng đăng nhập vào ứng dụng rồi mở `/meetings`, chọn **Kết nối Google Calendar** và cấp quyền cho tài khoản Google cá nhân; cuộc họp sẽ được tạo trên lịch chính của tài khoản đó. Token được lưu riêng theo từng tài khoản ứng dụng trong `google_tokens/` (đã được ignore bởi Git). Thời gian cuộc họp dùng múi giờ `Asia/Ho_Chi_Minh`. Nếu màn hình đồng ý OAuth đang ở chế độ kiểm thử, thêm từng tài khoản Google vào danh sách test users. Không đưa `credentials.json` hoặc token trong `google_tokens/` lên Git hay gửi cho người khác.
+Đặt OAuth client file loại Desktop (`credentials.json`) ở thư mục dự án, bật Google Calendar API cho project Google Cloud và cấu hình OAuth consent screen. Mỗi người dùng đăng nhập vào ứng dụng rồi mở `/meetings`, chọn **Kết nối Google Calendar**; ứng dụng mở cửa sổ Google riêng để đăng nhập và cấp quyền Calendar. Cho phép cửa sổ bật lên nếu trình duyệt chặn popup. Sau khi cấp quyền, đóng cửa sổ xác nhận và quay lại ứng dụng; nút tạo sự kiện và link Meet sẽ được bật. Token được lưu riêng theo từng tài khoản ứng dụng trong `google_tokens/` (đã được ignore bởi Git). Thời gian cuộc họp dùng múi giờ `Asia/Ho_Chi_Minh`. Nếu màn hình đồng ý OAuth đang ở chế độ kiểm thử, thêm từng tài khoản Google vào danh sách test users. Không đưa `credentials.json` hoặc token trong `google_tokens/` lên Git hay gửi cho người khác.
 
 ## Cấu trúc mã nguồn
 

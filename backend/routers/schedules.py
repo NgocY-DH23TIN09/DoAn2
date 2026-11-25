@@ -67,6 +67,8 @@ def list_schedules(scope: Optional[str] = None, current_user: dict = Depends(get
 def create_schedule(payload: ScheduleCreate, current_user: dict = Depends(get_current_user)):
     if payload.end_time <= payload.start_time:
         raise HTTPException(status_code=422, detail="Thời gian kết thúc phải sau thời gian bắt đầu.")
+    if payload.scope != "personal" and current_user.get("role") not in {"admin", "manager"}:
+        raise HTTPException(status_code=403, detail="Chỉ quản trị viên hoặc quản lý được tạo lịch toàn đơn vị.")
 
     doc = {
         "title": payload.title.strip(),

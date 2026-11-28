@@ -3,19 +3,20 @@ from typing import Literal, Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 from backend.database import approvals_collection, users_collection
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, require_module
 
 router = APIRouter(
     prefix="/api/v1/approvals",
     tags=["E-Office Approvals"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_module("approvals"))],
 )
 
 
 class ApprovalCreate(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
     title: str = Field(min_length=2, max_length=200)
     request_type: Literal["leave", "expense", "document", "procurement"] = "document"
     content: str = Field(min_length=5, max_length=10000)
@@ -26,6 +27,15 @@ class ApprovalCreate(BaseModel):
 class ApprovalDecision(BaseModel):
     action: Literal["approved", "rejected"]
     comment: Optional[str] = Field(default="", max_length=1000)
+
+
+@router.get("/approvers")
+def list_approvers():
+    return [
+        {"id": str(user["_id"]), "name": user.get("full_name") or user.get("username", "")}
+        for user in users_collection.find({"is_active": {"$ne": False}}, {"full_name": 1, "username": 1})
+        .sort("full_name", 1).limit(200)
+    ]
 
 
 @router.get("/")
@@ -64,12 +74,14 @@ def submit_approval(payload: ApprovalCreate, current_user: dict = Depends(get_cu
     if not ObjectId.is_valid(payload.approver_id):
         raise HTTPException(status_code=404, detail="Người phê duyệt không hợp lệ.")
     approver = users_collection.find_one({"_id": ObjectId(payload.approver_id)})
-    if not approver:
+    if not approver or not approver.get("is_active", True):
         raise HTTPException(status_code=404, detail="Không tìm thấy người phê duyệt.")
 
     now = datetime.now(timezone.utc)
-    code = f"TK-{now.strftime('%Y%m%d')}-{approvals_collection.count_documents({}) + 1:03d}"
+    approval_id = ObjectId()
+    code = f"TK-{now:%Y%m%d}-{approval_id}"
     doc = {
+        "_id": approval_id,
         "code": code,
         "title": payload.title.strip(),
         "request_type": payload.request_type,
@@ -102,15 +114,6 @@ def decide_approval(
 ):
     if not ObjectId.is_valid(approval_id):
         raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ trình ký.")
-    item = approvals_collection.find_one({"_id": ObjectId(approval_id)})
-    if not item:
-        raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ trình ký.")
-    if item.get("status") != "pending":
-        raise HTTPException(status_code=409, detail="Hồ sơ trình ký đã được xử lý.")
-
-    if item["approver_id"] != current_user["id"] and current_user.get("role") != "admin":
-        raise HTTPException(status_code=403, detail="Bạn không phải người được chỉ định ký duyệt hồ sơ này.")
-
     now = datetime.now(timezone.utc)
     log_entry = {
         "actor": current_user.get("full_name", ""),
@@ -118,11 +121,21 @@ def decide_approval(
         "comment": payload.comment or ("Đã ký duyệt điện tử" if payload.action == "approved" else "Từ chối phê duyệt"),
         "at": now.isoformat(),
     }
-    approvals_collection.update_one(
-        {"_id": ObjectId(approval_id)},
+    condition = {"_id": ObjectId(approval_id), "status": "pending"}
+    if current_user.get("role") != "admin":
+        condition["approver_id"] = current_user["id"]
+    result = approvals_collection.update_one(
+        condition,
         {
             "$set": {"status": payload.action, "decided_at": now},
             "$push": {"history": log_entry},
         },
     )
+    if not result.modified_count:
+        item = approvals_collection.find_one({"_id": condition["_id"]}, {"approver_id": 1})
+        if item is None:
+            raise HTTPException(status_code=404, detail="Không tìm thấy hồ sơ trình ký.")
+        if "approver_id" in condition and item["approver_id"] != current_user["id"]:
+            raise HTTPException(status_code=403, detail="Bạn không phải người được chỉ định ký duyệt hồ sơ này.")
+        raise HTTPException(status_code=409, detail="Hồ sơ trình ký đã được xử lý.")
     return {"id": approval_id, "status": payload.action}

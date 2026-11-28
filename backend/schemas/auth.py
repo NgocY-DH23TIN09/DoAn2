@@ -57,8 +57,11 @@ class UserResponse(BaseModel):
     position: str | None = None
     company: str | None = None
     role: str
-
     model_config = {"from_attributes": True}
+
+
+class ProfileResponse(UserResponse):
+    permissions: list[str]
 
 
 class TokenResponse(BaseModel):

@@ -1,3 +1,4 @@
+import re
 from datetime import datetime, timezone
 from typing import Literal, Optional
 from uuid import uuid4
@@ -8,13 +9,13 @@ from pydantic import BaseModel, Field
 from pymongo import ReturnDocument
 
 from backend.database import departments_collection, users_collection
-from backend.routers.auth import get_current_user, require_roles
+from backend.routers.auth import require_module, require_roles
 from backend.security import hash_password
 
 router = APIRouter(
     prefix="/api/v1/employees",
     tags=["Employees & HR"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_module("employees"))],
 )
 
 
@@ -24,7 +25,7 @@ class EmployeeCreate(BaseModel):
     phone: Optional[str] = Field(default=None, max_length=30)
     position: str = Field(default="Nhân viên", max_length=100)
     department: str = Field(default="Phòng Hành chính", max_length=100)
-    role: str = Field(default="employee")
+    role: Literal["admin", "manager", "employee"] = "employee"
     password: str = Field(default="Welcome@123", min_length=8)
 
 
@@ -59,6 +60,7 @@ def list_employees(department: Optional[str] = None, search: Optional[str] = Non
     if department:
         query["department"] = department
     if search:
+        search = re.escape(search)
         query["$or"] = [
             {"full_name": {"$regex": search, "$options": "i"}},
             {"email": {"$regex": search, "$options": "i"}},
@@ -68,8 +70,10 @@ def list_employees(department: Optional[str] = None, search: Optional[str] = Non
     return [_serialize_user(u) for u in users]
 
 
-@router.post("/", dependencies=[Depends(require_roles("admin", "manager"))])
-def create_employee(payload: EmployeeCreate):
+@router.post("/")
+def create_employee(payload: EmployeeCreate, actor: dict = Depends(require_roles("admin", "manager"))):
+    if actor["role"] != "admin" and payload.role != "employee":
+        raise HTTPException(status_code=403, detail="Quản lý chỉ có thể tạo tài khoản nhân viên.")
     if users_collection.find_one({"email": payload.email.lower().strip()}):
         raise HTTPException(status_code=400, detail="Email nhân viên đã tồn tại.")
 
@@ -81,7 +85,7 @@ def create_employee(payload: EmployeeCreate):
         "position": payload.position.strip(),
         "department": payload.department.strip(),
         "company": "Văn phòng số",
-        "role": payload.role if payload.role in {"admin", "manager", "employee"} else "employee",
+        "role": payload.role,
         "password_hash": hash_password(payload.password),
         "is_active": True,
         "created_at": datetime.now(timezone.utc),

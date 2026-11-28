@@ -12,14 +12,42 @@ function escapeHtml(value) {
     }[char]));
 }
 
-document.addEventListener("DOMContentLoaded", () => {
-    if (localStorage.getItem("access_token")) loadDocuments();
-});
+let dashboardUser;
+const pendingDecisions = new Set();
+const canAccess = module => dashboardUser?.permissions?.includes(module);
+const canReview = () => ["admin", "manager"].includes(dashboardUser?.role);
+
+function configureDashboard(user) {
+    dashboardUser = user;
+    document.querySelectorAll("[data-module]").forEach(element => {
+        element.hidden = !element.dataset.module.split(" ").some(canAccess);
+    });
+    for (const option of document.getElementById("empRole").options) {
+        option.disabled = user.role !== "admin" && option.value !== "employee";
+    }
+    document.getElementById("createEmployeeForm").hidden = !canReview();
+    document.getElementById("systemSettingsPanel").hidden = user.role !== "admin";
+    document.querySelectorAll("[data-assistant]").forEach(element => {
+        element.hidden = !canAccess("assistant") || !canAccess("documents");
+    });
+    if (canAccess("documents")) loadDocuments();
+}
+
+async function requireSuccessfulResponse(response, fallback) {
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) {
+        const detail = typeof data.detail === "string" ? data.detail : fallback;
+        throw new Error(`HTTP ${response.status}. ${detail}`);
+    }
+    return data;
+}
 
 // ================= QUẢN LÝ VĂN BẢN & TRÌNH KÝ =================
 async function loadDocuments() {
     const status = document.getElementById("statusFilter")?.value || "";
-    const url = status ? `/api/documents/?status=${status}` : "/api/documents/";
+    const params = new URLSearchParams({ drive_only: "true" });
+    if (status) params.set("status", status);
+    const url = `/api/documents/?${params}`;
 
     try {
         const res = await fetch(url, { headers: getAuthHeaders() });
@@ -58,16 +86,16 @@ function renderDocuments(docs) {
             ? `<button type="button" onclick="downloadDocumentFile('${doc.id}')" class="px-2 py-1 text-xs border rounded hover:bg-slate-100 mr-1">Xem file</button>`
             : "";
 
-        const actionBtns = doc.status === "pending"
-            ? `<button class="px-2 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700 mr-1" onclick="reviewDoc('${doc.id}', 'approved')">Duyệt</button>
-               <button class="px-2 py-1 text-xs border border-rose-300 text-rose-600 rounded hover:bg-rose-50" onclick="reviewDoc('${doc.id}', 'rejected')">Từ chối</button>`
+        const actionBtns = doc.status === "pending" && canReview()
+            ? `<button data-decision="${doc.id}" class="px-2 py-1 text-xs bg-emerald-600 text-white rounded hover:bg-emerald-700 mr-1" onclick="reviewDoc('${doc.id}', 'approved')">Duyệt</button>
+               <button data-decision="${doc.id}" class="px-2 py-1 text-xs border border-rose-300 text-rose-600 rounded hover:bg-rose-50" onclick="reviewDoc('${doc.id}', 'rejected')">Từ chối</button>`
             : "";
 
         return `
             <tr>
                 <td class="px-4 py-3 font-bold text-indigo-600 text-sm">${escapeHtml(doc.doc_number)}</td>
                 <td class="px-4 py-3">
-                    <div class="font-semibold text-sm">${escapeHtml(doc.title)}</div>
+                    <div class="font-semibold text-sm">${escapeHtml(doc.storage_provider === "google_drive" ? doc.file_name || doc.title : doc.title)}</div>
                     ${aiBox}
                 </td>
                 <td class="px-4 py-3">${badgeMap[doc.status] || escapeHtml(doc.status)}</td>
@@ -77,32 +105,11 @@ function renderDocuments(docs) {
     }).join("");
 }
 
-async function downloadDocumentFile(documentId) {
-    try {
-        const response = await fetch(`/api/documents/${documentId}/file`, {
-            headers: getAuthHeaders()
-        });
-        if (!response.ok) {
-            const data = await response.json();
-            throw new Error(data.detail || "Không thể tải tệp.");
-        }
-        const blob = await response.blob();
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = `document-${documentId}`;
-        link.click();
-        window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-    } catch (error) {
-        alert(error.message || "Không thể tải tệp.");
-    }
-}
-
 document.getElementById("createDocForm")?.addEventListener("submit", async (e) => {
     e.preventDefault();
     const btn = document.getElementById("submitBtn");
     btn.disabled = true;
-    btn.innerText = "Đang xử lý & tóm tắt AI...";
+    btn.innerText = "Đang lưu văn bản…";
 
     const formData = new FormData(e.target);
     try {
@@ -122,19 +129,38 @@ document.getElementById("createDocForm")?.addEventListener("submit", async (e) =
         alert("Lỗi kết nối máy chủ.");
     } finally {
         btn.disabled = false;
-        btn.innerText = "Gửi & Tóm tắt AI";
+        btn.innerText = "Lưu văn bản";
     }
 });
 
 async function reviewDoc(docId, action) {
-    try {
-        const res = await fetch(`/api/documents/${docId}/approve?action=${action}`, {
-            method: "PUT",
-            headers: getAuthHeaders()
+    if (!canReview()) return;
+    await submitDecision(docId, "documentDecisionStatus", async () => {
+        const response = await fetch(`/api/documents/${docId}/approve?action=${action}`, {
+            method: "PUT", headers: getAuthHeaders()
         });
-        if (res.ok) loadDocuments();
+        await requireSuccessfulResponse(response, "Không thể cập nhật trạng thái văn bản.");
+    }, loadDocuments);
+}
+
+async function submitDecision(id, statusId, send, refresh) {
+    if (pendingDecisions.has(id)) return;
+    pendingDecisions.add(id);
+    const status = document.getElementById(statusId);
+    status.textContent = "Đang lưu quyết định…";
+    const buttons = [...document.querySelectorAll("[data-decision]")].filter(button => button.dataset.decision === id);
+    buttons.forEach(button => { button.disabled = true; });
+    try {
+        await send();
+        status.textContent = "Đã lưu quyết định.";
+        playNotification();
+        await refresh();
     } catch (err) {
-        alert("Không thể cập nhật trạng thái văn bản.");
+        status.textContent = err.message || "Không thể kết nối máy chủ.";
+        if (status.textContent.startsWith("HTTP 409")) await refresh();
+    } finally {
+        pendingDecisions.delete(id);
+        buttons.forEach(button => { button.disabled = false; });
     }
 }
 
@@ -152,7 +178,7 @@ async function loadSchedules() {
         <div class="p-3 border border-slate-200 rounded-lg flex justify-between items-center">
             <div>
                 <div class="font-semibold text-slate-800">${escapeHtml(s.title)} <span class="text-xs bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded">${escapeHtml(s.scope)}</span></div>
-                <div class="text-xs text-slate-500 mt-1">🕒 ${new Date(s.start_time).toLocaleString("vi-VN")} → ${new Date(s.end_time).toLocaleString("vi-VN")} | 📍 ${escapeHtml(s.location)}</div>
+                <div class="text-xs text-slate-500 mt-1">🕒 ${new Date(s.start_time).toLocaleString("vi-VN", {timeZone: "Asia/Ho_Chi_Minh"})} → ${new Date(s.end_time).toLocaleString("vi-VN", {timeZone: "Asia/Ho_Chi_Minh"})} | 📍 ${escapeHtml(s.location)}</div>
             </div>
             <button onclick="deleteSchedule('${s.id}')" class="text-xs text-rose-600 hover:underline">Xóa</button>
         </div>
@@ -166,8 +192,8 @@ document.getElementById("createScheduleForm")?.addEventListener("submit", async 
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({
             title: document.getElementById("schedTitle").value,
-            start_time: new Date(document.getElementById("schedStart").value).toISOString(),
-            end_time: new Date(document.getElementById("schedEnd").value).toISOString(),
+            start_time: `${document.getElementById("schedStart").value}+07:00`,
+            end_time: `${document.getElementById("schedEnd").value}+07:00`,
             scope: document.getElementById("schedScope").value,
             location: document.getElementById("schedLocation").value
         })
@@ -212,7 +238,7 @@ document.getElementById("sendChatForm")?.addEventListener("submit", async e => {
         headers: getAuthHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify({ channel: "general", content: input.value })
     });
-    if (res.ok) { input.value = ""; loadChatMessages(); }
+    if (res.ok) { input.value = ""; playNotification(); loadChatMessages(); }
 });
 
 async function loadEmails() {
@@ -248,11 +274,71 @@ document.getElementById("sendEmailForm")?.addEventListener("submit", async e => 
 
 // ================= 3. QUẢN LÝ NHÂN VIÊN =================
 
-// loadApprovals: Tải danh sách trình ký (gọi khi mở tab workflow)
 async function loadApprovals() {
-    // Phần trình ký hiển thị inline cùng tab workflow
-    // Dữ liệu đã được tải qua loadDocuments() và hiển thị trên bảng danh sách
-    // Nếu cần thêm danh sách approval riêng, mở rộng ở đây
+    if (!canAccess("approvals")) return;
+    const list = document.getElementById("approvalList");
+    const select = document.getElementById("approvalApprover");
+    try {
+        const [items, approvers] = await Promise.all(
+            ["/api/v1/approvals/", "/api/v1/approvals/approvers"].map(async url =>
+                requireSuccessfulResponse(await fetch(url, { headers: getAuthHeaders() }), "Không tải được hồ sơ trình ký."))
+        );
+        const selected = select.value;
+        select.replaceChildren(new Option("Chọn người duyệt", ""), ...approvers.map(person => new Option(person.name, person.id)));
+        if (approvers.some(person => person.id === selected)) select.value = selected;
+        const labels = { pending: "Chờ duyệt", approved: "Đã duyệt", rejected: "Từ chối" };
+        list.innerHTML = items.map(item => {
+            const mayDecide = item.status === "pending" && (dashboardUser.role === "admin" || item.approver_id === dashboardUser.id);
+            return `<article class="rounded-lg border border-slate-200 p-3">
+                <div class="flex flex-wrap justify-between gap-2 text-sm font-semibold">
+                    <h4>${escapeHtml(item.title)}</h4><span>${escapeHtml(labels[item.status] || item.status)}</span>
+                </div>
+                <p class="text-xs text-slate-500 break-all">${escapeHtml(item.code)} · ${escapeHtml(item.requester_name)} → ${escapeHtml(item.approver_name)}</p>
+                <p class="text-sm whitespace-pre-wrap break-words mt-2">${escapeHtml(item.content)}</p>
+                ${mayDecide ? `<div class="mt-2 flex gap-2">
+                    <button type="button" class="rounded bg-emerald-700 px-3 py-1 text-white disabled:opacity-50" data-decision="${item.id}" onclick="decideApproval('${item.id}', 'approved')">Duyệt phiếu</button>
+                    <button type="button" class="rounded border border-rose-300 px-3 py-1 text-rose-700 disabled:opacity-50" data-decision="${item.id}" onclick="decideApproval('${item.id}', 'rejected')">Từ chối phiếu</button>
+                </div>` : ""}
+            </article>`;
+        }).join("") || '<p class="text-slate-500 text-sm">Chưa có phiếu trình ký.</p>';
+    } catch (error) {
+        list.textContent = error.message || "Không thể tải phiếu trình ký.";
+    }
+}
+
+document.getElementById("createApprovalForm").addEventListener("submit", async event => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const button = form.querySelector('button[type="submit"]');
+    if (button.disabled) return;
+    button.disabled = true;
+    const status = document.getElementById("approvalActionStatus");
+    status.textContent = "Đang gửi phiếu…";
+    try {
+        const data = Object.fromEntries(new FormData(form));
+        const response = await fetch("/api/v1/approvals/", {
+            method: "POST", headers: getAuthHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify(data)
+        });
+        const item = await requireSuccessfulResponse(response, "Không gửi được phiếu trình ký.");
+        status.textContent = `Đã gửi phiếu ${item.code}.`;
+        form.reset();
+        await loadApprovals();
+    } catch (error) {
+        status.textContent = error.message;
+    } finally {
+        button.disabled = false;
+    }
+});
+
+async function decideApproval(id, action) {
+    await submitDecision(id, "approvalActionStatus", async () => {
+        const response = await fetch(`/api/v1/approvals/${id}/decide`, {
+            method: "POST", headers: getAuthHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({ action })
+        });
+        await requireSuccessfulResponse(response, "Không thể lưu quyết định trình ký.");
+    }, loadApprovals);
 }
 
 async function loadEmployees() {
@@ -403,6 +489,29 @@ async function loadReports() {
 // ================= 5. CÀI ĐẶT, GIAO DIỆN SÁNG/TỐI & NGÔN NGỮ =================
 let currentTheme = localStorage.getItem("ui_theme") || "light";
 let currentLang = localStorage.getItem("ui_lang") || "vi";
+const soundPreference = document.getElementById("cfgSound");
+soundPreference.checked = localStorage.getItem("ui_notification_sound") === "on";
+let notificationAudio;
+soundPreference.addEventListener("change", () => {
+    localStorage.setItem("ui_notification_sound", soundPreference.checked ? "on" : "off");
+    playNotification();
+});
+
+function playNotification() {
+    if (!soundPreference.checked || !window.AudioContext) return;
+    notificationAudio ||= new AudioContext();
+    notificationAudio.resume().then(() => {
+        const tone = notificationAudio.createOscillator();
+        const gain = notificationAudio.createGain();
+        const now = notificationAudio.currentTime;
+        tone.frequency.value = 660;
+        gain.gain.setValueAtTime(0.07, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.16);
+        tone.connect(gain).connect(notificationAudio.destination);
+        tone.start(now);
+        tone.stop(now + 0.16);
+    }).catch(() => {});
+}
 
 const I18N_DICT = {
     vi: {
@@ -412,12 +521,12 @@ const I18N_DICT = {
         theme_light: "Chế độ Sáng",
         theme_dark: "Chế độ Tối",
         lang_label: "Ngôn ngữ hiển thị",
-        notif_sound: "Âm thanh thông báo tin nhắn & duyệt đơn",
+        notif_sound: "Âm thanh khi gửi tin nhắn hoặc lưu quyết định",
         sys_title: "Cấu Hình Hệ Thống & Phân Quyền",
         sys_desc: "Thiết lập chung áp dụng cho toàn bộ không gian làm việc.",
         org_label: "Tên tổ chức / Doanh nghiệp",
-        ai_auto_label: "Tự động tóm tắt văn bản bằng Gemini AI khi tải lên",
-        two_step_label: "Bật quy trình trình ký 2 cấp",
+        ai_auto_label: "Tự động tóm tắt tài liệu mới",
+        two_step_label: "Trình ký hai cấp chưa được hỗ trợ",
         btn_save_cfg: "Lưu toàn bộ cài đặt"
     },
     en: {
@@ -427,12 +536,12 @@ const I18N_DICT = {
         theme_light: "Light Mode",
         theme_dark: "Dark Mode",
         lang_label: "Display Language",
-        notif_sound: "Notification sound for messages & approvals",
+        notif_sound: "Sound after sending a message or saving a decision",
         sys_title: "System Configuration & Permissions",
         sys_desc: "Global settings applied across the entire organization.",
         org_label: "Organization / Company Name",
-        ai_auto_label: "Auto-summarize uploaded documents with Gemini AI",
-        two_step_label: "Enable 2-step approval workflow",
+        ai_auto_label: "Auto-summarize new documents",
+        two_step_label: "Two-step approval is not supported yet",
         btn_save_cfg: "Save All Settings"
     }
 };
@@ -476,33 +585,71 @@ async function loadSettings() {
     const langSelect = document.getElementById("cfgLanguage");
     if (langSelect) langSelect.value = currentLang;
 
-    const res = await fetch("/api/v1/settings/", { headers: getAuthHeaders() });
-    if (!res.ok) return;
-    const cfg = await res.json();
-    document.getElementById("cfgOrgName").value = cfg.organization_name || "";
-    document.getElementById("cfgAiAuto").checked = Boolean(cfg.ai_auto_summarize);
-    document.getElementById("cfgTwoStep").checked = Boolean(cfg.require_two_step_approval);
+    if (dashboardUser?.role !== "admin") return;
+    const status = document.getElementById("settingsStatus");
+    const saveButton = document.getElementById("saveSystemSettings");
+    saveButton.disabled = true;
+    try {
+        const res = await fetch("/api/v1/settings/", { headers: getAuthHeaders() });
+        const cfg = await requireSuccessfulResponse(res, "Không tải được cài đặt hệ thống.");
+        document.getElementById("cfgOrgName").value = cfg.organization_name || "";
+        document.getElementById("cfgAiAuto").checked = Boolean(cfg.ai_auto_summarize);
+        renderPermissionMatrix(cfg.permissions);
+        status.textContent = "";
+        saveButton.disabled = false;
+    } catch (error) {
+        status.textContent = error.message;
+    }
+}
+
+function renderPermissionMatrix(permissions) {
+    const labels = {
+        tasks: "Công việc", documents: "Tài liệu", schedules: "Lịch", meetings: "Cuộc họp",
+        comms: "Chat và email", approvals: "Trình ký", employees: "Nhân sự", reports: "Báo cáo", assistant: "Trợ lý AI"
+    };
+    document.getElementById("permissionMatrix").innerHTML = `
+        <table class="w-full text-sm">
+            <caption class="text-left font-semibold mb-2">Quyền truy cập phân hệ</caption>
+            <thead><tr><th scope="col" class="text-left">Phân hệ</th><th scope="col">Quản lý</th><th scope="col">Nhân viên</th></tr></thead>
+            <tbody>${Object.entries(labels).map(([module, label]) => `
+                <tr><th scope="row" class="text-left font-normal py-1">${label}</th>
+                ${["manager", "employee"].map(role => `<td class="text-center"><input type="checkbox"
+                    data-role="${role}" value="${module}" aria-label="${label} cho ${role === "manager" ? "quản lý" : "nhân viên"}"
+                    ${permissions[role]?.includes(module) ? "checked" : ""}></td>`).join("")}</tr>`).join("")}</tbody>
+        </table>`;
 }
 
 async function saveSettings() {
     const selectedLang = document.getElementById("cfgLanguage")?.value || currentLang;
     applyLanguage(selectedLang);
 
-    const res = await fetch("/api/v1/settings/", {
-        method: "PUT",
-        headers: getAuthHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify({
-            organization_name: document.getElementById("cfgOrgName").value,
-            language: selectedLang,
-            theme: currentTheme,
-            ai_auto_summarize: document.getElementById("cfgAiAuto").checked,
-            require_two_step_approval: document.getElementById("cfgTwoStep").checked
-        })
-    });
-    const data = await res.json();
-    if (res.ok) {
-        alert(currentLang === "en" ? "Settings saved successfully!" : (data.message || "Đã lưu cài đặt!"));
-    } else {
-        alert(currentLang === "en" ? "Personal theme/language saved locally (Admin role required for system config)." : "Đã lưu giao diện & ngôn ngữ cá nhân (Cấu hình hệ thống yêu cầu quyền Admin).");
+    if (dashboardUser?.role !== "admin") return;
+    const status = document.getElementById("settingsStatus");
+    const button = document.getElementById("saveSystemSettings");
+    if (button.disabled) return;
+    button.disabled = true;
+    status.textContent = "Đang lưu cài đặt…";
+    const permissions = {};
+    for (const role of ["manager", "employee"]) {
+        permissions[role] = ["dashboard", ...Array.from(
+            document.querySelectorAll(`#permissionMatrix input[data-role="${role}"]:checked`), input => input.value
+        )];
+    }
+    try {
+        const res = await fetch("/api/v1/settings/", {
+            method: "PUT", headers: getAuthHeaders({ "Content-Type": "application/json" }),
+            body: JSON.stringify({
+                organization_name: document.getElementById("cfgOrgName").value,
+                language: selectedLang, theme: currentTheme,
+                ai_auto_summarize: document.getElementById("cfgAiAuto").checked,
+                permissions
+            })
+        });
+        const data = await requireSuccessfulResponse(res, "Không lưu được cài đặt hệ thống.");
+        status.textContent = data.message;
+    } catch (error) {
+        status.textContent = error.message;
+    } finally {
+        button.disabled = false;
     }
 }

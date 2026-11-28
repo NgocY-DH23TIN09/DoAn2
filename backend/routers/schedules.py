@@ -1,17 +1,19 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Literal, Optional
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from backend.database import schedules_collection
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, require_module
+
+OFFICE_TIMEZONE = timezone(timedelta(hours=7))
 
 router = APIRouter(
     prefix="/api/v1/schedules",
     tags=["Work Schedule"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_module("schedules"))],
 )
 
 
@@ -24,14 +26,34 @@ class ScheduleCreate(BaseModel):
     scope: Literal["personal", "department", "company"] = "personal"
     department: Optional[str] = None
 
+    @field_validator("start_time", "end_time")
+    @classmethod
+    def utc_time(cls, value: datetime) -> datetime:
+        if value.tzinfo is None:
+            value = value.replace(tzinfo=OFFICE_TIMEZONE)
+        return value.astimezone(timezone.utc)
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def trim_title(cls, value):
+        return value.strip() if isinstance(value, str) else value
+
+
+def _stored_time(value: datetime | str) -> str:
+    if isinstance(value, str):
+        value = datetime.fromisoformat(value)
+    if value.tzinfo is None:
+        value = value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc).isoformat()
+
 
 def _serialize_schedule(item: dict) -> dict:
     return {
         "id": str(item["_id"]),
         "title": item["title"],
         "description": item.get("description", ""),
-        "start_time": item["start_time"].isoformat() if isinstance(item["start_time"], datetime) else item["start_time"],
-        "end_time": item["end_time"].isoformat() if isinstance(item["end_time"], datetime) else item["end_time"],
+        "start_time": _stored_time(item["start_time"]),
+        "end_time": _stored_time(item["end_time"]),
         "location": item.get("location", ""),
         "scope": item.get("scope", "personal"),
         "department": item.get("department"),
@@ -41,7 +63,7 @@ def _serialize_schedule(item: dict) -> dict:
 
 
 @router.get("/")
-def list_schedules(scope: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+def list_schedules(scope: Literal["personal", "department", "company"] | None = None, current_user: dict = Depends(get_current_user)):
     if scope:
         # When filtering by scope, still respect visibility rules
         if scope == "personal":

@@ -1,16 +1,16 @@
 from datetime import datetime, timezone
 
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from backend.database import emails_collection, messages_collection, users_collection
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, require_module
 
 router = APIRouter(
     prefix="/api/v1/comms",
     tags=["Internal Chat & Email"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_module("comms"))],
 )
 
 
@@ -26,7 +26,7 @@ class InternalEmailCreate(BaseModel):
 
 
 @router.get("/chat/{channel}")
-def get_channel_messages(channel: str, limit: int = 50):
+def get_channel_messages(channel: str, limit: int = Query(default=50, ge=1, le=100)):
     msgs = list(messages_collection.find({"channel": channel}).sort("created_at", -1).limit(limit))
     msgs.reverse()
     return [

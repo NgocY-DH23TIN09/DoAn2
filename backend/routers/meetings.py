@@ -2,21 +2,27 @@ import logging
 import threading
 import time
 from datetime import date, datetime, timedelta, timezone
+from io import BytesIO
 from pathlib import Path
 from typing import Annotated
+from urllib.parse import quote
 from uuid import uuid4
 
+from bson import ObjectId
+from docx import Document
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from ai_assistant.summarizer import SummarizationError, summarize_text
+from backend import google_workspace
 from backend.mongo_db import MongoMeetingError, get_meetings_collection
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, require_module
 
 router = APIRouter(
     prefix="/api/v1/meetings",
     tags=["Smart Meeting Room"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_module("meetings"))],
 )
 LOCAL_MEETINGS: list[dict] = []
 logger = logging.getLogger(__name__)
@@ -67,6 +73,12 @@ def _read_google_credentials(user_id: str):
 
 
 def _get_google_calendar_service(user_id: str):
+    if _workspace_email(user_id):
+        try:
+            return google_workspace.get_service(user_id, "calendar", "v3")
+        except google_workspace.GoogleWorkspaceError as exc:
+            raise GoogleMeetError(str(exc)) from exc
+
     credentials = _read_google_credentials(user_id)
     if credentials is None:
         raise GoogleMeetError("Bạn chưa kết nối tài khoản Google Calendar.")
@@ -183,6 +195,14 @@ def _get_meetings_col():
         raise HTTPException(status_code=503, detail=str(exc)) from exc
 
 
+def _workspace_email(user_id: str) -> str | None:
+    try:
+        client = google_workspace.load_client()
+    except google_workspace.GoogleWorkspaceError:
+        return None
+    return google_workspace.connected_email(user_id, client)
+
+
 @router.post("/generate-minutes")
 def create_and_summarize_meeting(
     req: MeetingCreateRequest,
@@ -276,7 +296,44 @@ def list_meetings(
 
 @router.get("/google/status")
 def google_calendar_status(current_user: dict = Depends(get_current_user)):
+    email = _workspace_email(current_user["id"])
+    if email:
+        return {"status": "connected", "credentials_configured": True, "email": email}
     return _google_connection_status(current_user["id"])
+
+
+@router.get("/{meeting_id}/docx")
+def download_minutes(meeting_id: str):
+    collection = _get_meetings_col()
+    if collection is None:
+        meeting = next((record for record in LOCAL_MEETINGS if record["id"] == meeting_id), None)
+    elif ObjectId.is_valid(meeting_id):
+        meeting = collection.find_one({"_id": ObjectId(meeting_id)})
+    else:
+        meeting = None
+    if meeting is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy biên bản.")
+
+    document = Document()
+    document.add_heading(meeting["title"], 0)
+    document.add_paragraph(f"Ngày họp: {meeting.get('meeting_date', '')}")
+    if participants := meeting.get("participants"):
+        document.add_paragraph("Thành phần: " + ", ".join(participants))
+    document.add_heading("Tóm tắt", level=1)
+    document.add_paragraph(meeting.get("ai_summary") or "")
+    document.add_heading("Đầu việc", level=1)
+    for action in meeting.get("action_items", []):
+        document.add_paragraph(action, style="List Bullet")
+    document.add_heading("Ghi chú cuộc họp", level=1)
+    document.add_paragraph(meeting.get("raw_notes") or "")
+    content = BytesIO()
+    document.save(content)
+    filename = quote(meeting.get("standard_filename") or "BienBan.docx", safe="")
+    return Response(
+        content.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        headers={"Content-Disposition": f"attachment; filename*=UTF-8''{filename}", "Cache-Control": "private, no-store"},
+    )
 
 
 @router.post("/google/connect")
@@ -326,6 +383,8 @@ def create_google_meet(
     req: GoogleMeetCreateRequest,
     current_user: dict = Depends(get_current_user),
 ):
+    if not current_user.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Tài khoản đã bị khóa.")
     title = req.title.strip()
     if not title:
         raise HTTPException(status_code=422, detail="Vui lòng nhập chủ đề cuộc họp.")
@@ -368,18 +427,6 @@ def create_google_meet(
             body=event_body,
             conferenceDataVersion=1,
         ).execute()
-        meet_url = _meeting_link(event)
-        event_id = event.get("id")
-        if not meet_url and event_id:
-            for _ in range(5):
-                time.sleep(1)
-                event = service.events().get(
-                    calendarId="primary",
-                    eventId=event_id,
-                ).execute()
-                meet_url = _meeting_link(event)
-                if meet_url:
-                    break
     except Exception as exc:
         logger.exception("Google Calendar event creation failed.")
         raise HTTPException(
@@ -387,13 +434,29 @@ def create_google_meet(
             detail="Google Calendar không tạo được sự kiện. Hãy kiểm tra kết nối và quyền Calendar.",
         ) from exc
 
+    event_id = event.get("id")
+    calendar_url = event.get("htmlLink")
+    meet_url = _meeting_link(event)
+    if not meet_url and event_id:
+        for _ in range(5):
+            time.sleep(1)
+            try:
+                latest = service.events().get(calendarId="primary", eventId=event_id).execute()
+            except Exception as exc:
+                logger.warning("Could not read Meet link after creating Calendar event (%s).", type(exc).__name__)
+                break
+            calendar_url = latest.get("htmlLink") or calendar_url
+            meet_url = _meeting_link(latest)
+            if meet_url:
+                break
+
     return {
         "status": "created" if meet_url else "conference_pending",
         "title": title,
         "start_at": start_at.isoformat(),
         "end_at": end_at.isoformat(),
         "meet_url": meet_url,
-        "calendar_url": event.get("htmlLink"),
+        "calendar_url": calendar_url,
         "event_id": event_id,
         "message": (
             "Đã tạo sự kiện và link Google Meet."

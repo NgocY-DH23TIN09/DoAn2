@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NexusAI - Hệ thống Văn phòng số thông minh</title>
+    <title>NexusOffice Demo</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Lucide Icons -->
@@ -27,7 +27,7 @@
                 <div class="w-8 h-8 rounded-lg ai-gradient flex items-center justify-center text-white font-bold shadow-lg">
                     <i data-lucide="sparkles" class="w-5 h-5"></i>
                 </div>
-                <span class="text-white font-bold text-lg tracking-wide">Nexus<span class="text-indigo-400">Office</span></span>
+                <span class="text-white font-bold text-lg tracking-wide">NexusOffice Demo</span>
             </div>
 
             <!-- Menu Navigation -->
@@ -293,14 +293,6 @@
 
     <!-- JAVASCRIPT XỬ LÝ TƯƠNG TÁC -->
     <script>
-        const APP_BASE_URL = window.location.protocol === 'file:'
-            ? 'hhttp://127.0.0.1:8000/frontend/'
-            : window.location.origin + '/frontend/';
-
-        if (window.location.protocol === 'file:') {
-            window.location.replace(APP_BASE_URL);
-        }
-
         // Khởi tạo icons
         if (window.lucide) {
             lucide.createIcons();
@@ -320,39 +312,14 @@
             selectedButton.classList.remove('hover:bg-slate-800');
         }
 
-        async function loadCurrentUser() {
-            const token = localStorage.getItem('access_token');
-            if (!token) {
-                window.location.replace('/login');
-                return;
-            }
-
-            try {
-                const response = await fetch('/api/auth/me', {
-                    headers: { Authorization: `Bearer ${token}` }
-                });
-                if (!response.ok) {
-                    localStorage.removeItem('access_token');
-                    window.location.replace('/login');
-                    return;
-                }
-
-                const user = await response.json();
-                const displayName = user.full_name || 'Người dùng';
-                document.getElementById('profile-name').textContent = displayName;
-                document.getElementById('profile-position').textContent =
-                    [user.position, user.company].filter(Boolean).join(' · ') || 'Thành viên';
-                document.getElementById('greeting-name').textContent = displayName;
-                document.getElementById('profile-avatar').textContent =
-                    displayName.trim().charAt(0).toLocaleUpperCase('vi');
-            } catch (error) {
-                console.error('Không thể tải thông tin tài khoản:', error);
-                window.location.replace('/');
-            }
+        function loadCurrentUser() {
+            document.getElementById('profile-name').textContent = 'Người dùng mẫu';
+            document.getElementById('profile-position').textContent = 'Dữ liệu và chatbot mô phỏng';
+            document.getElementById('greeting-name').textContent = 'khách tham quan';
+            document.getElementById('profile-avatar').textContent = 'D';
         }
 
         function logout() {
-            localStorage.removeItem('access_token');
             window.location.replace('/');
         }
 
@@ -390,7 +357,7 @@
 
             // Phản hồi giả lập của AI sau 0.6 giây
             setTimeout(() => {
-                let reply = `Tôi đã tiếp nhận yêu cầu: "${text}". Hệ thống đang phân tích dữ liệu nội bộ để xử lý cho bạn!`;
+                let reply = 'Phản hồi mẫu cho trang demo.';
                 
                 if (text.includes("Q3")) {
                     reply = "📊 Tóm tắt Báo cáo Q3:\n• Doanh thu đạt 112% kế hoạch.\n• Chi phí vận hành giảm 8% nhờ tự động hóa.\n• Đề xuất: Tăng ngân sách cho mảng Sản phẩm số trong Q4.";
@@ -400,7 +367,7 @@
 
                 const assistantMessage = document.createElement('div');
                 assistantMessage.className = 'bg-slate-100 text-slate-800 p-3 rounded-2xl rounded-tl-none max-w-[90%] leading-relaxed whitespace-pre-line';
-                assistantMessage.textContent = reply;
+                assistantMessage.textContent = 'Mô phỏng · ' + reply;
                 chatBox.appendChild(assistantMessage);
                 chatBox.scrollTop = chatBox.scrollHeight;
             }, 600);

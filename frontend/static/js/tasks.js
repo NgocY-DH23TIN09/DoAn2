@@ -53,12 +53,18 @@ async function loadAssignees(currentUser) {
     }
 }
 
+let taskListRequest;
+
 async function loadTasks() {
+    taskListRequest?.abort();
+    const request = new AbortController();
+    taskListRequest = request;
     const status = document.getElementById("taskStatusFilter").value;
     const url = status ? `/api/tasks/?status=${encodeURIComponent(status)}` : "/api/tasks/";
     try {
-        const response = await fetch(url, { headers: getAuthHeaders() });
+        const response = await fetch(url, { headers: getAuthHeaders(), signal: request.signal });
         const tasks = await response.json();
+        if (request.signal.aborted) return;
         if (!response.ok) throw new Error(tasks.detail || "Không thể tải danh sách công việc.");
 
         const tbody = document.getElementById("taskTableBody");
@@ -95,6 +101,7 @@ async function loadTasks() {
                 </tr>`;
         }).join("");
     } catch (error) {
+        if (request.signal.aborted) return;
         document.getElementById("taskTableBody").innerHTML =
             `<tr><td colspan="4" class="text-danger p-3">${escapeHtml(error.message)}</td></tr>`;
     }
@@ -103,6 +110,8 @@ async function loadTasks() {
 document.getElementById("createTaskForm").addEventListener("submit", async event => {
     event.preventDefault();
     const form = event.currentTarget;
+    const submit = form.querySelector('button[type="submit"]');
+    if (submit.disabled) return;
     const deadlineValue = document.getElementById("taskDeadline").value;
     const assigneeId = document.getElementById("assigneeSelect").value;
     if (!assigneeId) {
@@ -110,6 +119,8 @@ document.getElementById("createTaskForm").addEventListener("submit", async event
         return;
     }
 
+    submit.disabled = true;
+    form.setAttribute("aria-busy", "true");
     try {
         const response = await fetch("/api/tasks/", {
             method: "POST",
@@ -128,6 +139,9 @@ document.getElementById("createTaskForm").addEventListener("submit", async event
         await loadTasks();
     } catch (error) {
         alert(error.message || "Lỗi kết nối máy chủ.");
+    } finally {
+        submit.disabled = false;
+        form.removeAttribute("aria-busy");
     }
 });
 

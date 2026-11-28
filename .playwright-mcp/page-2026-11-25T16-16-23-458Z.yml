@@ -1,0 +1,47 @@
+- generic [active] [ref=e1]:
+  - complementary "Vận hành công việc một cách thông minh." [ref=e2]:
+    - generic [ref=e3]:
+      - link "NexusOffice - Trang đăng nhập" [ref=e4] [cursor=pointer]:
+        - /url: /login
+        - generic [ref=e9]: NexusOffice
+      - generic [ref=e10]: KHÔNG GIAN LÀM VIỆC SỐ
+      - heading "Vận hành công việc một cách thông minh." [level=2] [ref=e11]: Vận hành công việcmột cách thông minh.
+      - paragraph [ref=e12]: Quản lý tài liệu, công việc và cuộc họp trong một không gian làm việc tập trung.
+      - list [ref=e13]:
+        - listitem [ref=e14]:
+          - generic [aria-hidden] [ref=e15]: ✓
+          - text: Quản lý và tìm kiếm tài liệu
+        - listitem [ref=e16]:
+          - generic [aria-hidden] [ref=e17]: ✓
+          - text: Theo dõi công việc và phê duyệt
+        - listitem [ref=e18]:
+          - generic [aria-hidden] [ref=e19]: ✓
+          - text: Hỗ trợ AI cho quy trình văn phòng
+    - generic [ref=e20]: NEXUS OFFICE · WORKSPACE
+  - main [ref=e22]:
+    - generic [ref=e23]:
+      - generic [ref=e24]:
+        - generic [aria-hidden] [ref=e25]: 🏢
+        - heading "Chào mừng trở lại" [level=1] [ref=e26]
+        - paragraph [ref=e27]: Đăng nhập để tiếp tục vào không gian làm việc.
+      - tablist "Tài khoản" [ref=e28]:
+        - tab "Đăng nhập" [selected] [ref=e29] [cursor=pointer]
+        - tab "Đăng ký" [ref=e30] [cursor=pointer]
+      - tabpanel "Đăng nhập" [ref=e31]:
+        - tablist "Phương thức đăng nhập" [ref=e32]:
+          - tab "Mật khẩu" [selected] [ref=e33] [cursor=pointer]
+          - tab "Mã QR" [ref=e34] [cursor=pointer]
+        - tabpanel "Mật khẩu" [ref=e35]:
+          - generic [ref=e36]:
+            - generic [ref=e37]:
+              - generic [ref=e38]: Số điện thoại hoặc Email
+              - textbox "Số điện thoại hoặc Email" [ref=e39]:
+                - /placeholder: Nhập số điện thoại hoặc email
+            - generic [ref=e40]:
+              - generic [ref=e41]: Mật khẩu
+              - generic [ref=e42]:
+                - textbox "Mật khẩu" [ref=e43]:
+                  - /placeholder: Nhập mật khẩu
+                - button "Hiện mật khẩu" [ref=e44] [cursor=pointer]: 👁
+            - button "ĐĂNG NHẬP" [ref=e45] [cursor=pointer]
+    - generic [ref=e46]: © 2026 - Hệ thống Văn phòng số tích hợp trợ lý thông minh

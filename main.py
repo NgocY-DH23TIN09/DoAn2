@@ -1,7 +1,9 @@
 import logging
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request
+from fastapi.concurrency import run_in_threadpool
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -15,6 +17,7 @@ from backend.routers import (
     communications,
     documents,
     employees,
+    google_workspace,
     meetings,
     oauth,
     reports,
@@ -29,10 +32,19 @@ from backend.security import (
 )
 from backend.seed import seed_data
 
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await run_in_threadpool(ensure_database_schema)
+    await run_in_threadpool(seed_data)
+    yield
+
+
 app = FastAPI(
     title="Văn phòng số tích hợp trợ lý AI",
     description="Hệ thống quản lý văn bản, workflow và công việc hành chính nội bộ",
     version="1.0.0",
+    lifespan=lifespan,
 )
 logger = logging.getLogger(__name__)
 
@@ -41,17 +53,15 @@ get_secret_key()
 get_algorithm()
 get_access_token_expire_minutes()
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "frontend" / "static")), name="static")
-app.mount("/frontend", StaticFiles(directory=str(BASE_DIR / "frontend"), html=True), name="frontend")
 
 templates = Jinja2Templates(directory=str(BASE_DIR / "frontend" / "templates"))
-
-ensure_database_schema()
-seed_data()
 
 # Đăng ký toàn bộ router của hệ thống
 app.include_router(assistant.router)
 app.include_router(auth.router)
 app.include_router(oauth.router)
+app.include_router(google_workspace.router)
+app.include_router(google_workspace.callback_alias_router)
 app.include_router(documents.router)
 app.include_router(meetings.router)
 app.include_router(tasks.router)
@@ -64,12 +74,15 @@ app.include_router(settings.router)
 
 
 @app.get("/frontend")
-def frontend_index_redirect():
-    return RedirectResponse(url="/frontend/")
-
-
+@app.get("/frontend/")
+@app.get("/frontend/index.html")
 @app.get("/index.html")
-def legacy_frontend_index():
+def legacy_demo_redirect():
+    return RedirectResponse(url="/demo")
+
+
+@app.get("/demo")
+def demo_page():
     return FileResponse(BASE_DIR / "frontend" / "index.html")
 
 
@@ -82,6 +95,11 @@ def login_page(request: Request):
 @app.get("/dashboard")
 def dashboard_page(request: Request):
     return templates.TemplateResponse(request=request, name="dashboard.html", context={})
+
+
+@app.get("/google-workspace")
+def google_workspace_page(request: Request):
+    return templates.TemplateResponse(request=request, name="google_workspace.html", context={})
 
 
 @app.get("/tasks")

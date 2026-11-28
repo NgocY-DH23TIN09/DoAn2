@@ -8,7 +8,8 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from pymongo.errors import DuplicateKeyError
 
 from backend.database import users_collection
-from backend.schemas.auth import LoginRequest, RegisterRequest, TokenResponse, UserResponse
+from backend.permissions import modules_for
+from backend.schemas.auth import LoginRequest, ProfileResponse, RegisterRequest, TokenResponse, UserResponse
 from backend.security import (
     create_access_token,
     get_algorithm,
@@ -101,6 +102,8 @@ def get_current_user(
     user = users_collection.find_one({"_id": ObjectId(user_id)})
     if user is None:
         raise HTTPException(status_code=401, detail="Tài khoản không tồn tại")
+    if not user.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Tài khoản đã bị khóa.")
 
     user["id"] = str(user.pop("_id"))
     return user
@@ -118,6 +121,15 @@ def require_roles(*allowed_roles: str):
     return role_checker
 
 
-@router.get("/me", response_model=UserResponse)
+def require_module(module: str):
+    def permission_checker(current_user: dict = Depends(get_current_user)):
+        if module not in modules_for(current_user.get("role", "")):
+            raise HTTPException(status_code=403, detail="Bạn không có quyền truy cập phân hệ này.")
+        return current_user
+
+    return permission_checker
+
+
+@router.get("/me", response_model=ProfileResponse)
 def get_my_profile(current_user: dict = Depends(get_current_user)):
-    return _user_response(current_user)
+    return {**_user_response(current_user), "permissions": modules_for(current_user.get("role", ""))}

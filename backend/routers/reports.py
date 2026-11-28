@@ -8,12 +8,12 @@ from backend.database import (
     tasks_collection,
     users_collection,
 )
-from backend.routers.auth import get_current_user
+from backend.routers.auth import require_module
 
 router = APIRouter(
     prefix="/api/v1/reports",
     tags=["Reports & Analytics"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_module("reports"))],
 )
 
 

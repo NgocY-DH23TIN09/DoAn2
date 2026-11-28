@@ -1,5 +1,6 @@
 # Môi trường ảo Python
 venv/
+venv-python312-backup/
 .venv/
 env/
 
@@ -17,6 +18,7 @@ __pycache__/
 *.key
 *.pem
 credentials.json
+google_workspace_credentials.json
 token.json
 google_tokens/
 
@@ -30,6 +32,8 @@ uploads/*
 
 # IDE & Hệ điều hành
 .idea/
-.vscode/
+.vscode/*
+!.vscode/launch.json
+!.vscode/settings.json
 .DS_Store
 Thumbs.db

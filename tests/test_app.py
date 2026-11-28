@@ -3,10 +3,15 @@ from uuid import uuid4
 
 from bson import ObjectId
 from fastapi.testclient import TestClient
+import pytest
 
 from main import app
 
-client = TestClient(app)
+@pytest.fixture(scope="module", autouse=True)
+def start_test_app():
+    global client
+    with TestClient(app) as client:
+        yield
 
 
 def test_health_endpoint():
@@ -316,16 +321,24 @@ def test_google_meet_rejects_past_start_without_calling_calendar(monkeypatch):
 
 
 def test_upload_document_and_download_requires_auth(monkeypatch):
+    from types import SimpleNamespace
+
+    from backend import document_storage
     from backend.database import documents_collection
     from backend.routers import assistant as assistant_router
-    from backend.routers import documents as documents_router
     from ai_assistant.history import MongoHistoryError
 
+    monkeypatch.setenv("GEMINI_API_KEY", "")
+    payload = b"Noi dung tai lieu kiem thu de tao tom tat."
+    monkeypatch.setattr(document_storage, "require_library", lambda: {})
+    monkeypatch.setattr(document_storage, "library_groups", lambda binding: ())
     monkeypatch.setattr(
-        documents_router,
-        "summarize_document_text",
-        lambda text: f"Tóm tắt kiểm thử: {text[:10]}",
+        document_storage, "upload_attachment",
+        lambda binding, document_id, category, name, content: SimpleNamespace(metadata={
+            "id": "test-drive-file", "name": name, "mime_type": "text/plain", "category": category,
+        }),
     )
+    monkeypatch.setattr(document_storage, "download_named_attachment", lambda attachment: (attachment["name"], payload))
     login = client.post(
         "/api/auth/login",
         json={"username": "admin", "password": "Admin@123"},
@@ -336,13 +349,14 @@ def test_upload_document_and_download_requires_auth(monkeypatch):
     response = client.post(
         "/api/v1/documents/upload",
         headers=headers,
-        files={"file": (filename, b"Noi dung tai lieu kiem thu de tao tom tat.", "text/plain")},
+        files={"file": (filename, payload, "text/plain")},
     )
     assert response.status_code == 200
     document = response.json()
     assert ObjectId.is_valid(document["id"])
     assert document["title"] == filename.removesuffix(".txt")
-    assert document["category"] == "00_TiepNhan"
+    assert document["category"] == "Cần phân loại"
+    assert document["storage_provider"] == "google_drive"
     assert document["creator_id"]
 
     def fail_history(**kwargs):
@@ -367,17 +381,10 @@ def test_upload_document_and_download_requires_auth(monkeypatch):
 
     file_response = client.get(f"/api/documents/{document['id']}/file", headers=headers)
     assert file_response.status_code == 200
-    assert file_response.content == b"Noi dung tai lieu kiem thu de tao tom tat."
+    assert file_response.content == payload
     assert client.get(f"/api/documents/{document['id']}/file").status_code == 401
 
-    stored_document = documents_collection.find_one_and_delete(
-        {"_id": ObjectId(document["id"])}
-    )
-    file_path = stored_document.get("file_path") if stored_document else None
-    if file_path:
-        from pathlib import Path
-
-        (Path(__file__).resolve().parents[1] / file_path).unlink(missing_ok=True)
+    documents_collection.delete_one({"_id": ObjectId(document["id"])})
 
 
 def test_employee_cannot_assign_task_to_another_user():

@@ -1,26 +1,32 @@
 import logging
+import re
+import unicodedata
 from pathlib import Path
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from pymongo import ReturnDocument
 
+from ai_assistant.document_analysis import summarize_extracted_document
 from ai_assistant.history import (
     MongoHistoryError,
     get_integration_status,
     record_ai_interaction,
 )
-from ai_assistant.summarizer import SummarizationError, summarize_text
+from ai_assistant.summarizer import SummarizationError, answer_from_sources, get_gemini_api_key, summarize_text
 from backend.database import documents_collection
-from backend.routers.auth import get_current_user, require_roles
+from backend.routers.auth import require_module, require_roles
 
 router = APIRouter(
     prefix="/api/v1/assistant",
     tags=["AI Assistant"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_module("assistant")), Depends(require_module("documents"))],
 )
 logger = logging.getLogger(__name__)
+SEARCH_DOCUMENT_LIMIT = 500
+QUESTION_WORDS = {"ai", "gi", "nao", "la", "cua", "cho", "hay", "ve", "co", "the", "da", "va", "nhu"}
+SIGNATURE_LINE = re.compile(r"\b(?:nguoi ky|da ky|ky ten|chu ky|ky boi|ky thay)\b")
 
 
 class SummarizeRequest(BaseModel):
@@ -29,6 +35,8 @@ class SummarizeRequest(BaseModel):
 
 
 class ProposalApproveRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)
+    document_id: str
     approved_title: str = Field(min_length=1, max_length=200)
     category: str = Field(min_length=1, max_length=150)
 
@@ -40,6 +48,33 @@ class ChatAskRequest(BaseModel):
 
 def _document_text(doc: dict) -> str:
     return (doc.get("content") or "").strip()
+
+
+def _search_words(text: str) -> list[str]:
+    folded = unicodedata.normalize("NFD", text.casefold().replace("đ", "d"))
+    return re.findall(r"[a-z0-9]+", "".join(char for char in folded if not unicodedata.combining(char)))
+
+
+def _relevant_source(doc: dict, terms: set[str], signature_question: bool):
+    text = _document_text(doc)
+    if not text:
+        return None
+    title = doc.get("title", "")
+    title_score = len(terms.intersection(_search_words(title)))
+    best_score = 0
+    best_snippet = ""
+    for start in range(0, len(text), 400):
+        snippet = text[start:start + 700].strip()
+        words = _search_words(snippet)
+        hits = terms.intersection(words)
+        signature_hit = signature_question and SIGNATURE_LINE.search(" ".join(words))
+        score = len(hits) * 5 + (8 if signature_hit else 0)
+        if score > best_score:
+            best_score = score
+            best_snippet = snippet
+    if not best_score:
+        return None
+    return best_score + title_score, {"document_id": str(doc["_id"]), "title": title, "snippet": best_snippet}
 
 
 def _save_ai_history(
@@ -87,7 +122,12 @@ def api_summarize_document(
     if not content:
         raise HTTPException(status_code=422, detail="Tài liệu chưa có nội dung văn bản để tóm tắt.")
 
-    summary = _summarize(content, req.max_length)
+    if doc.get("ocr_pages") and not get_gemini_api_key():
+        summary = summarize_extracted_document(content) or ""
+        if len(summary) > req.max_length:
+            summary = summary[:req.max_length - 1].rstrip() + "…"
+    else:
+        summary = _summarize(content, req.max_length)
     document_id = str(doc["_id"])
     history_warning = _save_ai_history("summarize", document_id, content, summary)
     documents_collection.update_one(
@@ -111,6 +151,18 @@ def api_analyze_and_propose(
     doc = documents_collection.find_one({"_id": ObjectId(document_id)})
     if doc is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu.")
+
+    if doc.get("drive_file"):
+        return {
+            "document_id": document_id,
+            "original_name": doc["title"],
+            "proposed_name": doc["title"],
+            "proposed_category": doc.get("category"),
+            "stored_filename": doc["drive_file"]["name"],
+            "summary": doc.get("ai_summary"),
+            "status": "READY" if doc.get("status") == "approved" else "AWAITING_REVIEW",
+            "evidence": [{"field": "document_type", "quote": doc.get("analysis_reason", "")}],
+        }
 
     content = _document_text(doc) or doc["title"]
     summary = _summarize(content)
@@ -159,6 +211,8 @@ def api_approve_proposal(
 ):
     if not ObjectId.is_valid(document_id):
         raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu.")
+    if req.document_id != document_id:
+        raise HTTPException(status_code=409, detail="Đề xuất không thuộc tài liệu đang duyệt.")
     doc = documents_collection.find_one({"_id": ObjectId(document_id)})
     if doc is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu.")
@@ -166,7 +220,7 @@ def api_approve_proposal(
     old_title = doc.get("title")
     old_category = doc.get("category")
     updated = documents_collection.find_one_and_update(
-        {"_id": doc["_id"]},
+        {"_id": doc["_id"], "status": "pending"},
         {"$set": {
             "title": req.approved_title.strip(),
             "category": req.category.strip(),
@@ -176,7 +230,7 @@ def api_approve_proposal(
         return_document=ReturnDocument.AFTER,
     )
     if updated is None:
-        raise HTTPException(status_code=404, detail="Không tìm thấy tài liệu.")
+        raise HTTPException(status_code=409, detail="Tài liệu đã được xử lý.")
     return {
         "message": "Đã áp dụng tên và phân loại mới.",
         "before": {"title": old_title, "category": old_category},
@@ -194,39 +248,50 @@ def api_ask_documents(
         raise HTTPException(status_code=422, detail="Vui lòng nhập câu hỏi.")
 
     query = {}
-    if req.document_ids:
+    if req.document_ids is not None:
         if any(not ObjectId.is_valid(document_id) for document_id in req.document_ids):
             raise HTTPException(status_code=422, detail="Mã tài liệu không hợp lệ.")
         query["_id"] = {"$in": [ObjectId(document_id) for document_id in req.document_ids]}
 
-    keywords = [word.lower() for word in question.split() if len(word) > 2]
-    matched_sources = []
-    context_snippets = []
-    documents = documents_collection.find(query).sort("created_at", -1).limit(500)
-    for doc in documents:
-        source_text = f"{_document_text(doc)} {doc.get('title', '')}"
-        if any(keyword in source_text.lower() for keyword in keywords):
-            snippet = source_text[:350].strip()
-            matched_sources.append({
-                "document_id": str(doc["_id"]),
-                "title": doc.get("title", ""),
-                "snippet": snippet,
-            })
-            context_snippets.append(f"[{doc.get('title', '')}]: {snippet}")
-            if len(matched_sources) == 5:
-                break
+    question_words = _search_words(question)
+    keywords = set(question_words) - QUESTION_WORDS or set(question_words)
+    signature_question = "ky" in keywords and bool({"ai", "nguoi", "chu"}.intersection(question_words))
+    ranked = []
+    searched_count = 0
+    limit_reached = False
+    documents = documents_collection.find(query, {"content": 1, "title": 1}).sort(
+        [("created_at", -1), ("_id", -1)]
+    ).limit(SEARCH_DOCUMENT_LIMIT + 1)
+    for index, doc in enumerate(documents):
+        if index == SEARCH_DOCUMENT_LIMIT:
+            limit_reached = True
+            break
+        searched_count += 1
+        source = _relevant_source(doc, keywords, signature_question)
+        if source:
+            ranked.append(source)
+    matched_sources = [source for _, source in sorted(ranked, key=lambda item: item[0], reverse=True)[:5]]
+    scope = {"documents_searched": searched_count, "limit_reached": limit_reached, "document_limit": SEARCH_DOCUMENT_LIMIT}
+    scope_warning = (
+        f"Chỉ tra cứu {SEARCH_DOCUMENT_LIMIT} tài liệu mới nhất. Hãy chọn tài liệu cụ thể để tìm trong hồ sơ cũ hơn."
+        if limit_reached else None
+    )
 
     if not matched_sources:
         return {
             "answer": "Chưa tìm thấy căn cứ phù hợp trong phạm vi tài liệu được chọn. Vui lòng thử từ khóa khác hoặc mở rộng phạm vi.",
             "sources": [],
+            "search_scope": scope,
+            "scope_warning": scope_warning,
         }
 
-    history_input = f"Câu hỏi: {question}\nNgữ cảnh:\n" + "\n".join(context_snippets)
-    answer = _summarize(history_input)
+    history_input = f"Câu hỏi: {question}\nNguồn:\n" + "\n".join(source["snippet"] for source in matched_sources)
+    answer = answer_from_sources(question, matched_sources)
     history_warning = _save_ai_history("ask", None, history_input, answer)
     return {
         "answer": answer,
         "sources": matched_sources,
         "history_warning": history_warning,
+        "search_scope": scope,
+        "scope_warning": scope_warning,
     }

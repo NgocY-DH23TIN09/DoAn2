@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="referrer" content="no-referrer">
+    <title>Google Lịch & Drive — NexusOffice</title>
+    <link rel="stylesheet" href="/static/css/google-workspace.css">
+    <script src="/static/js/google-workspace.js" defer></script>
+</head>
+<body>
+    <header>
+        <nav aria-label="Điều hướng">
+            <a class="brand" href="/dashboard">NexusOffice</a>
+            <a href="/dashboard">Tổng quan</a>
+            <a href="/meetings">Phòng họp</a>
+        </nav>
+    </header>
+    <main>
+        <h1>Google Lịch & Drive</h1>
+        <section class="panel connection" aria-labelledby="accountTitle">
+            <div>
+                <h2 id="accountTitle">Tài khoản Google</h2>
+                <p id="connectionStatus" role="status">Đang kiểm tra kết nối…</p>
+                <p id="notice" role="status" hidden></p>
+            </div>
+            <div class="actions">
+                <button id="connectGoogle" hidden>Kết nối Google</button>
+                <button id="disconnectGoogle" class="secondary" hidden>Ngắt liên kết</button>
+            </div>
+        </section>
+        <details id="googleConfig" class="panel configuration" hidden>
+            <summary>Cấu hình Google Calendar API và Google Drive API</summary>
+            <div class="config-content">
+                <p>Bật cả hai API trong cùng một project. NexusOffice dùng một OAuth client loại Web application để kết nối tài khoản Google.</p>
+                <div class="api-links" aria-label="Dịch vụ Google cần bật">
+                    <div>
+                        <strong>Google Calendar API</strong>
+                        <a href="https://console.cloud.google.com/apis/library/calendar-json.googleapis.com" target="_blank" rel="noopener noreferrer">Bật Calendar API</a>
+                    </div>
+                    <div>
+                        <strong>Google Drive API</strong>
+                        <a href="https://console.cloud.google.com/apis/library/drive.googleapis.com" target="_blank" rel="noopener noreferrer">Bật Drive API</a>
+                    </div>
+                </div>
+                <div class="oauth-redirect">
+                    <label for="oauthRedirectUri">Authorized redirect URI</label>
+                    <div class="actions">
+                        <input id="oauthRedirectUri" type="text" readonly spellcheck="false">
+                        <button id="copyRedirectUri" class="secondary" type="button">Sao chép URI</button>
+                    </div>
+                    <p><a href="https://console.cloud.google.com/auth/clients" target="_blank" rel="noopener noreferrer">Tạo OAuth client trong Google Cloud</a></p>
+                </div>
+                <form id="googleConfigForm" method="post" enctype="multipart/form-data" aria-label="Nhập cấu hình OAuth Google">
+                    <fieldset class="input-options">
+                        <legend>Phương thức nhập</legend>
+                        <label><input type="radio" name="config_method" value="json" checked> Tải tệp JSON</label>
+                        <label><input type="radio" name="config_method" value="manual"> Nhập thủ công</label>
+                    </fieldset>
+                    <fieldset id="oauthJsonFields">
+                        <label for="oauthJsonFile">Tệp JSON OAuth Web</label>
+                        <input id="oauthJsonFile" name="oauth_json" type="file" accept=".json,application/json" required>
+                    </fieldset>
+                    <fieldset class="oauth-fields" id="oauthManualFields" hidden disabled>
+                        <div>
+                            <label for="googleClientId">Client ID</label>
+                            <input id="googleClientId" name="client_id" type="text" autocomplete="off" spellcheck="false" maxlength="256" required>
+                        </div>
+                        <div>
+                            <label for="googleClientSecret">Client Secret</label>
+                            <input id="googleClientSecret" name="client_secret" type="password" autocomplete="new-password" maxlength="256" required>
+                        </div>
+                    </fieldset>
+                    <button id="saveGoogleConfig" type="submit">Lưu cấu hình Google</button>
+                    <p id="configurationStatus" role="status"></p>
+                </form>
+            </div>
+        </details>
+        <div id="googleServices" class="service-grid" hidden>
+            <section class="panel" aria-labelledby="calendarTitle">
+                <h2 id="calendarTitle">Lịch sắp tới</h2>
+                <div class="actions">
+                    <a href="/meetings">Tạo sự kiện & Google Meet</a>
+                    <a href="https://calendar.google.com/" target="_blank" rel="noopener noreferrer">Mở Google Lịch</a>
+                    <button class="secondary" id="refreshCalendar">Làm mới</button>
+                </div>
+                <p id="calendarStatus" role="status"></p>
+                <ul class="entries" id="calendarEvents"></ul>
+            </section>
+            <section class="panel" aria-labelledby="driveTitle">
+                <h2 id="driveTitle">Google Drive</h2>
+                <p>Hiển thị các tệp Drive mà NexusOffice được cấp quyền truy cập.</p>
+                <div class="actions">
+                    <a href="https://drive.google.com/" target="_blank" rel="noopener noreferrer">Mở toàn bộ Drive trên Google</a>
+                    <button class="secondary" id="refreshDrive">Làm mới</button>
+                </div>
+                <form id="uploadDrive">
+                    <label for="driveUpload">Tải tệp lên Drive (tối đa 10 MB)</label>
+                    <div class="actions">
+                        <input id="driveUpload" name="file" type="file" required>
+                        <button id="uploadDriveButton" type="submit">Tải lên</button>
+                    </div>
+                </form>
+                <p id="uploadStatus" role="status"></p>
+                <p id="driveStatus" role="status"></p>
+                <ul class="entries" id="driveFiles"></ul>
+                <button id="moreDrive" class="secondary" hidden>Tải thêm tệp</button>
+            </section>
+        </div>
+    </main>
+</body>
+</html>

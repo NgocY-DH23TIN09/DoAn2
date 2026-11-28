@@ -31,6 +31,7 @@
         body.dark-theme textarea { background-color: #0f172a !important; color: #f8fafc !important; border-color: #475569 !important; }
     </style>
     <script src="/static/js/global-prefs.js"></script>
+    <style>[hidden] { display: none !important; }</style>
 </head>
 <body class="bg-slate-50 text-slate-800 font-sans h-screen flex overflow-hidden">
     <!-- SIDEBAR 11 PHÂN HỆ -->
@@ -48,39 +49,43 @@
                     <i data-lucide="layout-dashboard" class="w-4 h-4 shrink-0"></i>
                     <span>Tổng quan (Dashboard)</span>
                 </button>
-                <a href="/tasks" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
+                <a href="/tasks" data-module="tasks" hidden class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
                     <i data-lucide="check-square" class="w-4 h-4 shrink-0"></i>
                     <span>Quản lý Công việc</span>
                 </a>
-                <a href="/documents" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
+                <a href="/documents" data-module="documents" hidden class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
                     <i data-lucide="book-open-check" class="w-4 h-4 shrink-0"></i>
                     <span>Tài liệu & Wiki AI</span>
                 </a>
-                <button onclick="switchTab('schedules', this); loadSchedules();" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
+                <button onclick="switchTab('schedules', this); loadSchedules();" data-module="schedules" hidden class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
                     <i data-lucide="calendar-days" class="w-4 h-4 shrink-0"></i>
                     <span>Lịch làm việc</span>
                 </button>
-                <a href="/meetings" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
+                <a href="/meetings" data-module="meetings" hidden class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
                     <i data-lucide="video" class="w-4 h-4 shrink-0"></i>
                     <span>Phòng họp thông minh</span>
                 </a>
-                <button onclick="switchTab('comms', this); loadComms();" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
+                <a href="/google-workspace" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
+                    <i data-lucide="cloud" class="w-4 h-4 shrink-0"></i>
+                    <span>Google Lịch & Drive</span>
+                </a>
+                <button onclick="switchTab('comms', this); loadComms();" data-module="comms" hidden class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
                     <i data-lucide="messages-square" class="w-4 h-4 shrink-0"></i>
                     <span>Chat & Email nội bộ</span>
                 </button>
-                <button onclick="switchTab('workflow', this); loadDocuments(); loadApprovals();" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
+                <button onclick="switchTab('workflow', this); if (canAccess('documents')) loadDocuments(); loadApprovals();" data-module="documents approvals" hidden class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
                     <i data-lucide="file-signature" class="w-4 h-4 shrink-0"></i>
                     <span>Trình ký & Phê duyệt</span>
                 </button>
-                <button onclick="switchTab('employees', this); loadEmployees();" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
+                <button onclick="switchTab('employees', this); loadEmployees();" data-module="employees" hidden class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
                     <i data-lucide="users" class="w-4 h-4 shrink-0"></i>
                     <span>Quản lý nhân viên</span>
                 </button>
-                <button onclick="switchTab('reports', this); loadReports();" class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
+                <button onclick="switchTab('reports', this); loadReports();" data-module="reports" hidden class="nav-btn w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
                     <i data-lucide="bar-chart-3" class="w-4 h-4 shrink-0"></i>
                     <span>Báo cáo thống kê</span>
                 </button>
-                <button onclick="toggleAI()" class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
+                <button onclick="toggleAI()" data-assistant hidden class="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-lg hover:bg-slate-800 hover:text-white transition text-sm">
                     <i data-lucide="bot" class="w-4 h-4 shrink-0"></i>
                     <span>Trợ lý AI</span>
                 </button>
@@ -108,13 +113,13 @@
     <!-- MAIN CONTENT -->
     <div class="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header class="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 shrink-0">
-            <div class="relative w-96 max-w-full">
+            <div class="relative w-96 max-w-full" data-assistant hidden>
                 <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3.5 top-3"></i>
                 <input type="text" placeholder="Hỏi AI về tài liệu..." onkeydown="if(event.key === 'Enter') askAI(this.value)" class="w-full pl-10 pr-4 py-2 bg-slate-100 border-transparent focus:bg-white focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200 rounded-lg text-sm outline-none transition">
             </div>
 
             <div class="flex items-center gap-3">
-                <button onclick="toggleAI()" class="flex items-center gap-2 ai-gradient text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:opacity-95 transition">
+                <button onclick="toggleAI()" data-assistant hidden class="flex items-center gap-2 ai-gradient text-white px-4 py-2 rounded-lg text-sm font-medium shadow-sm hover:opacity-95 transition">
                     <i data-lucide="bot" class="w-4 h-4"></i>
                     <span>Trợ lý AI</span>
                 </button>
@@ -135,8 +140,8 @@
                                 Hỏi đáp AI sử dụng nội dung tài liệu đã được lưu trong hệ thống. Các công việc, lịch biểu và biên bản được đồng bộ theo thời gian thực.
                             </p>
                             <div class="mt-4 flex flex-wrap gap-2">
-                                <button onclick="askAI('Tóm tắt các tài liệu mới nhất')" class="text-xs bg-white border border-indigo-200 text-indigo-700 px-3 py-1.5 rounded-full font-medium hover:bg-indigo-600 hover:text-white transition">
-                                    ✨ Tóm tắt tài liệu mới nhất
+                                <button onclick="toggleAI()" data-assistant hidden class="text-xs bg-white border border-indigo-200 text-indigo-700 px-3 py-1.5 rounded-full font-medium hover:bg-indigo-600 hover:text-white transition">
+                                    Hỏi về tài liệu
                                 </button>
                                 <a href="/tasks" class="text-xs bg-white border border-indigo-200 text-indigo-700 px-3 py-1.5 rounded-full font-medium hover:bg-indigo-600 hover:text-white transition">📅 Xem công việc</a>
                             </div>
@@ -191,9 +196,8 @@
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-bold text-slate-800 flex items-center gap-2">
                                 <i data-lucide="flame" class="w-5 h-5 text-orange-500"></i>
-                                Công việc ưu tiên (AI Đề xuất)
+                                Công việc
                             </h3>
-                            <span class="text-xs text-slate-400">Tự động xếp hạng</span>
                         </div>
                         <div class="space-y-3">
                             <p class="text-sm text-slate-500">Danh sách công việc thực tế, trạng thái và hạn hoàn thành được cập nhật tại trang Công việc.</p>
@@ -205,7 +209,7 @@
                         <div class="flex items-center justify-between mb-4">
                             <h3 class="font-bold text-slate-800 flex items-center gap-2">
                                 <i data-lucide="calendar" class="w-5 h-5 text-indigo-600"></i>
-                                Lịch họp hôm nay
+                                Phòng họp
                             </h3>
                         </div>
                         <div class="space-y-3">
@@ -309,9 +313,10 @@
                     </div>
                 </div>
 
-                <div class="grid grid-cols-1 xl:grid-cols-[1.1fr_1.9fr] gap-6">
+                <p id="documentDecisionStatus" data-module="documents" hidden role="status" class="text-sm text-slate-700 empty:hidden"></p>
+                <div data-module="documents" hidden class="grid grid-cols-1 xl:grid-cols-[1.1fr_1.9fr] gap-6">
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-                        <h2 class="text-xl font-bold mb-4">Trình ký / Tạo Văn Bản Mới</h2>
+                        <h2 class="text-xl font-bold mb-4">Tạo văn bản mới</h2>
                         <form id="createDocForm" class="space-y-4">
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-1">Số hiệu văn bản *</label>
@@ -330,14 +335,14 @@
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm font-medium text-slate-700 mb-1">Nội dung chính (AI sẽ tự động tóm tắt)</label>
+                                <label class="block text-sm font-medium text-slate-700 mb-1">Nội dung chính</label>
                                 <textarea class="w-full border border-slate-200 rounded-lg px-3 py-2 h-32 focus:ring-2 focus:ring-indigo-200 outline-none" name="content" placeholder="Nhập nội dung để Trợ lý AI tóm tắt..."></textarea>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-slate-700 mb-1">Tệp đính kèm (tối đa 10 MB)</label>
                                 <input type="file" accept=".pdf,.docx,.txt,.md,.csv,.jpg,.jpeg,.png" class="w-full border border-slate-200 rounded-lg px-3 py-2 bg-white" name="file">
                             </div>
-                            <button type="submit" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg transition">Gửi & Tóm tắt AI</button>
+                            <button type="submit" id="submitBtn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg transition">Lưu văn bản</button>
                         </form>
                     </div>
 
@@ -368,6 +373,32 @@
                         </div>
                     </div>
                 </div>
+                <section data-module="approvals" hidden class="bg-white rounded-xl border border-slate-200 p-5 space-y-4">
+                    <h2 class="text-lg font-bold">Phiếu trình ký</h2>
+                    <form id="createApprovalForm" class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                        <label class="text-sm">Tiêu đề
+                            <input name="title" required minlength="2" maxlength="200" class="block w-full border border-slate-300 rounded-lg px-3 py-2">
+                        </label>
+                        <label class="text-sm">Người duyệt
+                            <select id="approvalApprover" name="approver_id" required class="block w-full border border-slate-300 rounded-lg px-3 py-2"></select>
+                        </label>
+                        <label class="text-sm">Loại phiếu
+                            <select name="request_type" class="block w-full border border-slate-300 rounded-lg px-3 py-2">
+                                <option value="document">Văn bản</option><option value="leave">Nghỉ phép</option>
+                                <option value="expense">Chi phí</option><option value="procurement">Mua sắm</option>
+                            </select>
+                        </label>
+                        <label class="text-sm">Số tiền
+                            <input name="amount" type="number" min="0" step="any" value="0" required class="block w-full border border-slate-300 rounded-lg px-3 py-2">
+                        </label>
+                        <label class="text-sm sm:col-span-2">Nội dung
+                            <textarea name="content" required minlength="5" maxlength="10000" rows="3" class="block w-full border border-slate-300 rounded-lg px-3 py-2"></textarea>
+                        </label>
+                        <button type="submit" class="justify-self-start rounded-lg bg-indigo-700 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">Gửi phiếu</button>
+                    </form>
+                    <p id="approvalActionStatus" role="status" class="text-sm text-slate-700 empty:hidden"></p>
+                    <div id="approvalList" class="space-y-2"></div>
+                </section>
             </div>
 
             <!-- 5. TAB QUẢN LÝ NHÂN VIÊN -->
@@ -469,13 +500,13 @@
                         </div>
 
                         <div class="flex items-center justify-between pt-2 border-t border-slate-100">
-                            <span class="text-sm text-slate-700" data-i18n="notif_sound">Âm thanh thông báo tin nhắn & duyệt đơn</span>
-                            <input type="checkbox" id="cfgSound" checked class="w-4 h-4 accent-indigo-600">
+                            <label for="cfgSound" class="text-sm text-slate-700" data-i18n="notif_sound">Âm thanh khi gửi tin nhắn hoặc lưu quyết định</label>
+                            <input type="checkbox" id="cfgSound" class="w-4 h-4 accent-indigo-600">
                         </div>
                     </div>
 
                     <!-- Cấu hình Hệ thống & Phân quyền -->
-                    <div class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
+                    <div id="systemSettingsPanel" hidden class="bg-white rounded-xl border border-slate-200 p-6 shadow-sm space-y-4">
                         <div>
                             <h3 class="font-bold text-lg text-slate-800" data-i18n="sys_title">Cấu Hình Hệ Thống & Phân Quyền</h3>
                             <p class="text-xs text-slate-500 mt-1" data-i18n="sys_desc">Thiết lập chung áp dụng cho toàn bộ không gian làm việc.</p>
@@ -488,16 +519,18 @@
 
                         <div class="flex items-center gap-3 pt-1">
                             <input type="checkbox" id="cfgAiAuto" class="w-4 h-4 accent-indigo-600">
-                            <label for="cfgAiAuto" class="text-sm" data-i18n="ai_auto_label">Tự động tóm tắt văn bản bằng Gemini AI khi tải lên</label>
+                            <label for="cfgAiAuto" class="text-sm" data-i18n="ai_auto_label">Tự động tóm tắt tài liệu mới</label>
                         </div>
 
                         <div class="flex items-center gap-3">
-                            <input type="checkbox" id="cfgTwoStep" class="w-4 h-4 accent-indigo-600">
-                            <label for="cfgTwoStep" class="text-sm" data-i18n="two_step_label">Bật quy trình trình ký 2 cấp</label>
+                            <input type="checkbox" id="cfgTwoStep" disabled class="w-4 h-4 accent-indigo-600">
+                            <label for="cfgTwoStep" class="text-sm" data-i18n="two_step_label">Trình ký hai cấp chưa được hỗ trợ</label>
                         </div>
+                        <div id="permissionMatrix" class="overflow-x-auto"></div>
+                        <p id="settingsStatus" role="status" class="text-xs text-slate-600"></p>
 
                         <div class="pt-3">
-                            <button onclick="saveSettings()" class="w-full bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition" data-i18n="btn_save_cfg">
+                            <button id="saveSystemSettings" onclick="saveSettings()" disabled class="w-full bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-700 transition disabled:opacity-50" data-i18n="btn_save_cfg">
                                 Lưu toàn bộ cài đặt
                             </button>
                         </div>
@@ -522,7 +555,7 @@
 
         <div id="chat-box" class="flex-1 p-4 overflow-y-auto space-y-4 text-sm">
             <div class="bg-slate-100 text-slate-800 p-3 rounded-2xl rounded-tl-none">
-                Xin chào! Tôi là trợ lý ảo văn phòng của bạn. Tôi có thể giúp bạn <strong>tóm tắt tài liệu, tạo công việc, soạn email</strong> hoặc <strong>tra cứu quy định công ty</strong>.
+                Hỏi về tài liệu đã lưu trong NexusOffice. Câu trả lời sẽ kèm trích dẫn khi tìm được nguồn liên quan.
             </div>
         </div>
 
@@ -534,6 +567,8 @@
         </div>
     </aside>
 
+    <script src="/static/js/document-download.js"></script>
+    <script src="/static/js/dashboard.js?v=2"></script>
     <script>
         if (window.lucide) { lucide.createIcons(); }
         loadCurrentUser();
@@ -571,6 +606,7 @@
                 }
 
                 const user = await response.json();
+                configureDashboard(user);
                 const displayName = user.full_name || 'Người dùng';
                 document.getElementById('profile-name').textContent = displayName;
                 document.getElementById('profile-position').textContent = [user.position, user.company].filter(Boolean).join(' · ') || 'Thành viên';
@@ -588,11 +624,13 @@
         }
 
         function toggleAI() {
+            if (!canAccess("assistant") || !canAccess("documents")) return;
             const drawer = document.getElementById('ai-drawer');
             drawer.classList.toggle('hidden');
         }
 
         function askAI(promptText) {
+            if (!canAccess("assistant") || !canAccess("documents")) return;
             const drawer = document.getElementById('ai-drawer');
             drawer.classList.remove('hidden');
             document.getElementById('ai-input').value = promptText;
@@ -600,6 +638,7 @@
         }
 
         async function sendMessage() {
+            if (!canAccess("assistant") || !canAccess("documents")) return;
             const input = document.getElementById('ai-input');
             const chatBox = document.getElementById('chat-box');
             const text = input.value.trim();
@@ -634,9 +673,8 @@
                 });
                 const data = await response.json();
                 if (!response.ok) throw new Error(data.detail || 'Không thể hỏi trợ lý AI.');
-                assistantMessage.textContent = data.history_warning
-                    ? `${data.answer || 'Không có câu trả lời.'}\n\nCảnh báo: ${data.history_warning}`
-                    : data.answer || 'Không có câu trả lời.';
+                assistantMessage.textContent = [data.answer || 'Không có câu trả lời.', data.scope_warning, data.history_warning]
+                    .filter(Boolean).join('\n\n');
                 if (data.sources && data.sources.length) {
                     const sources = document.createElement('div');
                     sources.className = 'mt-2 text-xs';
@@ -661,6 +699,5 @@
             }
         }
     </script>
-    <script src="/static/js/dashboard.js"></script>
 </body>
 </html>

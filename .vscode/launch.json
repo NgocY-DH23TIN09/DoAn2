@@ -1,0 +1,30 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Chạy NexusOffice",
+      "type": "debugpy",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": [
+        "main:app",
+        "--host",
+        "127.0.0.1",
+        "--port",
+        "8000",
+        "--reload"
+      ],
+      "cwd": "${workspaceFolder}",
+      "env": {
+        "PYTHONUNBUFFERED": "1"
+      },
+      "jinja": true,
+      "justMyCode": false,
+      "serverReadyAction": {
+        "pattern": "Uvicorn running on .*",
+        "uriFormat": "http://127.0.0.1:8000/login",
+        "action": "openExternally"
+      }
+    }
+  ]
+}

@@ -6,13 +6,13 @@ from fastapi import APIRouter, Depends, HTTPException
 from pymongo import DESCENDING, ReturnDocument
 
 from backend.database import tasks_collection, users_collection
-from backend.routers.auth import get_current_user
+from backend.routers.auth import get_current_user, require_module
 from backend.schemas.task import TaskCreate, TaskResponse, TaskStatusUpdate
 
 router = APIRouter(
     prefix="/api/tasks",
     tags=["Tasks"],
-    dependencies=[Depends(get_current_user)],
+    dependencies=[Depends(require_module("tasks"))],
 )
 
 
